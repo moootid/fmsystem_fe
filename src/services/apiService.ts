@@ -1,214 +1,259 @@
-import axios, { AxiosError } from "axios";
-import { AuthUtils } from "../lib/authUtils"; // We'll create this
+// src/services/apiService.ts
+import axios, { AxiosError, AxiosResponse } from "axios";
+import { AuthUtils } from "../lib/authUtils"; // Assuming this exists and works
 
+// Import all necessary types
+import type { SelectOption, ApiErrorResponse, ApiValidationError } from "@/types/api";
+import type { LoginPayload, LoginResponse, RegisterPayload } from "@/types/auth";
+import type { ApiAuthToken, CreateApiAuthTokenPayload } from "@/types/apiAuthToken";
+import type { Vehicle, CreateVehiclePayload, UpdateVehiclePayload } from "@/types/vehicle";
+import type { IotDevice, CreateIotDevicePayload, UpdateIotDevicePayload } from "@/types/iotDevice";
+
+// Centralized API Client Configuration
 const apiClient = axios.create({
-  baseURL: "http://localhost:4000",
+  baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:4000", // Use env variable
   headers: {
     "Content-Type": "application/json",
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "*",
+    // CORS headers are typically set by the *server*, not the client request
+    // "Access-Control-Allow-Origin": "*", // Remove unless specifically needed and understood
+    // "Access-Control-Allow-Methods": "*", // Remove
   },
+  timeout: 10000, // Example: Add a request timeout
 });
 
-// Interceptor to add JWT token to requests
+// --- Interceptors ---
+
+// Request Interceptor: Add JWT token
 apiClient.interceptors.request.use(
   (config) => {
     const token = AuthUtils.getToken();
-    if (token && config.headers) {
+    // Ensure headers object exists before modification
+    if (token) {
+      config.headers = config.headers ?? {};
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
-// Interceptor to handle 401 Unauthorized (e.g., token expired)
+// Response Interceptor: Handle global errors like 401
 apiClient.interceptors.response.use(
-  (response) => response,
+  (response) => response, // Pass through successful responses
   (error: AxiosError) => {
     if (error.response?.status === 401) {
-      // Token is invalid or expired
-      AuthUtils.clearToken(); // Clear stored token
-      // Redirect to login using a mechanism outside the service
-      // (e.g., trigger state update in AuthContext)
-      // Or simply let the ProtectedRoute handle the redirect
-      window.location.href = "/login"; // Simple redirect, better handled via state/router
-      console.error("Unauthorized access - Redirecting to login");
+      console.error("API Error: 401 Unauthorized. Token might be invalid or expired.");
+      AuthUtils.clearToken();
+      // Use a more robust navigation method if possible (e.g., router hook outside service)
+      // This simple redirect might cause issues in complex apps or during SSR
+      if (window.location.pathname !== "/login") {
+         window.location.href = "/login";
+      }
     }
-    // Rethrow the error for components/hooks to handle
+    // Rethrow the error so specific catch blocks or React Query's onError can handle it
     return Promise.reject(error);
   }
 );
 
-// --- API Function Definitions ---
+// --- API Function Definitions (Grouped by Resource) ---
 
-// Auth
-export const login = (data: LoginPayload): Promise<LoginResponse> =>
-  apiClient.post("/login", data).then((res:any) => res.data).catch((error) => {
-    console.error("Login error:", error);
-    throw error; // Rethrow for component handling
-  })
-export const register = (data: RegisterPayload): Promise<void> =>
-  apiClient.post("/register", data).then((res:any) => res.data); // Assuming no specific response body needed
+const authApi = {
+  login: async (data: LoginPayload): Promise<LoginResponse> => {
+    const response = await apiClient.post<LoginResponse>("/login", data);
+    return response.data; // Return only the data payload
+  },
 
-// API Auth Tokens
-export const getApiAuthTokens = (): Promise<ApiAuthToken[]> =>
-  apiClient.get("/api_auth").then((res:any) => res ); // Adjust based on actual API response structure
-export const createApiAuthToken = (
-  data: CreateApiAuthTokenPayload
-): Promise<ApiAuthToken> =>
-  apiClient.post("/api_auth", data).then((res:any) => res );
+  register: async (data: RegisterPayload): Promise<void> => {
+    // Assuming success is indicated by 2xx status, no specific data needed
+    await apiClient.post<void>("/register", data);
+  },
 
-// Vehicles
-export const getVehicles = async ()=>
-  await apiClient.get("/vehicles").then((res:any) => res);
-export const createVehicle = (data: CreateVehiclePayload): Promise<Vehicle> =>
-  apiClient.post("/vehicles", data).then((res:any) => res );
-// Optional simplified fetch for selects
-export const getVehiclesForSelect = (): Promise<SelectOption[]> =>
-  apiClient.get("/vehicles?fields=id,code,plate").then((res:any) =>
-    res .map((v: any) => ({
+  // Add logout, forgotPassword, etc. if needed
+};
+
+const apiAuthTokenApi = {
+  list: async (): Promise<ApiAuthToken[]> => {
+    const response = await apiClient.get<ApiAuthToken[]>("/api_auth");
+    return response.data;
+  },
+
+  create: async (data: CreateApiAuthTokenPayload): Promise<ApiAuthToken> => {
+    const response = await apiClient.post<ApiAuthToken>("/api_auth", data);
+    return response.data;
+  },
+
+  getById: async (id: string): Promise<ApiAuthToken> => {
+     const response = await apiClient.get<ApiAuthToken>(`/api_auth/${id}`);
+     return response.data;
+  },
+
+  delete: async (id: string): Promise<void> => {
+     await apiClient.delete<void>(`/api_auth/${id}`);
+  },
+
+  // Add update if needed
+  // update: async (id: string, data: UpdateApiAuthTokenPayload): Promise<ApiAuthToken> => {
+  //   const response = await apiClient.put<ApiAuthToken>(`/api_auth/${id}`, data);
+  //   return response.data;
+  // },
+
+  // Example: Simplified fetch for selects
+  listForSelect: async (): Promise<SelectOption[]> => {
+    // Adjust fields based on API capabilities
+    const response = await apiClient.get<Pick<ApiAuthToken, 'id' | 'title'>[]>("/api_auth?fields=id,title");
+    return response.data.map((token) => ({
+      value: token.id,
+      label: token.title,
+    }));
+  },
+};
+
+const vehicleApi = {
+  list: async (): Promise<Vehicle[]> => {
+    const response = await apiClient.get<Vehicle[]>("/vehicles");
+    console.log(response.data)
+    return response.data;
+  },
+
+  create: async (data: CreateVehiclePayload): Promise<Vehicle> => {
+    const response = await apiClient.post<Vehicle>("/vehicles", data);
+    return response.data;
+  },
+
+  getById: async (id: string): Promise<Vehicle> => {
+    const response = await apiClient.get<Vehicle>(`/vehicles/${id}`);
+    return response.data;
+  },
+
+  update: async (id: string, data: UpdateVehiclePayload): Promise<Vehicle> => {
+    const response = await apiClient.put<Vehicle>(`/vehicles/${id}`, data);
+    return response.data;
+  },
+
+  delete: async (id: string): Promise<void> => {
+    await apiClient.delete<void>(`/vehicles/${id}`);
+  },
+
+  // Example: Simplified fetch for selects
+  listForSelect: async (): Promise<SelectOption[]> => {
+    // Adjust fields based on API capabilities
+    const response = await apiClient.get<Pick<Vehicle, 'id' | 'code' | 'plate'>[]>("/vehicles?fields=id,code,plate");
+    return response.data.map((v) => ({
       value: v.id,
       label: `${v.code} (${v.plate})`,
-    }))
-  ); // Adapt based on API capabilities
+    }));
+  },
+};
 
-// IoT Devices
-export const getIotDevices = (): Promise<IotDevice[]> =>
-  apiClient.get("/iot").then((res:any) => res );
-export const createIotDevice = (
-  data: CreateIotDevicePayload
-): Promise<IotDevice> =>
-  apiClient.post("/iot", data).then((res:any) => res );
-// Optional simplified fetch for selects
-export const getApiAuthForSelect = (): Promise<SelectOption[]> =>
-  apiClient.get("/api_auth?fields=id,title").then((res:any) =>
-    res .map((t: any) => ({ value: t.id, label: t.title }))
-  ); // Adapt based on API capabilities
+const iotDeviceApi = {
+  list: async (): Promise<IotDevice[]> => {
+    const response = await apiClient.get<IotDevice[]>("/iot");
+    return response.data;
+  },
 
-// --- Type Definitions (Define these based on your Elixir API) ---
-// Example types - Adjust precisely to your API contracts
-interface LoginPayload {
-  email: string;
-  password?: string; // Optional if using other methods
-}
-interface LoginResponse {
-  token: string;
-  user: { id: string; email: string; role: "user" | "admin" };
-}
-interface RegisterPayload {
-  email: string;
-  password?: string;
-}
-interface ApiAuthToken {
-  id: string;
-  title: string;
-  description: string | null;
-  token_prefix: string; // Example: Display prefix only
-  last_accessed_at: string | null;
-  created_at: string;
-  iot_devices_count: number;
-}
-interface CreateApiAuthTokenPayload {
-  title: string;
-  description?: string;
-}
-interface Vehicle {
-  id: string;
-  code: string;
-  plate: string;
-  vin: string | null;
-  manufacturer: string | null;
-  model: string | null;
-  year: number | null;
-  status: string;
-  type: string | null;
-  color: string | null;
-  iot_devices_count: number;
-  latest_telemetry: {
-    lat: number | null;
-    long: number | null;
-    timestamp: string | null;
-  } | null;
-}
-interface CreateVehiclePayload {
-  // Define fields needed for creation
-  code: string;
-  plate: string;
-  // ... other fields
-}
-interface IotDevice {
-  id: string;
-  mac_address: string;
-  model: string | null;
-  hw_version: string | null;
-  sw_version: string | null;
-  status: string;
-  vehicle: { id: string; code: string; plate: string } | null; // Example nested data
-  api_auth_token: { id: string; title: string } | null; // Example nested data
-}
-interface CreateIotDevicePayload {
-  mac_address: string;
-  vehicle_id?: string; // Send IDs
-  api_auth_token_id?: string;
-  // ... other fields
-}
-interface SelectOption {
-  value: string;
-  label: string;
-}
+  create: async (data: CreateIotDevicePayload): Promise<IotDevice> => {
+    const response = await apiClient.post<IotDevice>("/iot", data);
+    return response.data;
+  },
 
-// Add more specific error handling/typing as needed
+   getById: async (id: string): Promise<IotDevice> => {
+     const response = await apiClient.get<IotDevice>(`/iot/${id}`);
+     return response.data;
+   },
+
+   update: async (id: string, data: UpdateIotDevicePayload): Promise<IotDevice> => {
+     const response = await apiClient.put<IotDevice>(`/iot/${id}`, data);
+     return response.data;
+   },
+
+   delete: async (id: string): Promise<void> => {
+     await apiClient.delete<void>(`/iot/${id}`);
+   },
+};
+
+// --- Utility Functions ---
+
+/**
+ * Centralized error handler for API calls, primarily for displaying toasts.
+ * @param error The error object caught (unknown type).
+ * @param toastFn A function (like `toast.error`) to display the error message.
+ * @returns Structured validation errors if available, otherwise null.
+ */
 export const handleApiError = (
   error: unknown,
-  toastFn: (options: any) => void
-) => {
+  // Use a more specific type for toast options if available from your library
+  toastFn: (title: string, options?: { description?: string; [key: string]: any }) => void
+): ApiValidationError | null => {
   let title = "An error occurred";
-  let description = "Please try again later.";
+  let description = "Please try again later or contact support.";
+  let validationErrors: ApiValidationError | null = null;
 
   if (axios.isAxiosError(error)) {
-    title = `Error: ${error.response?.status || "Network Error"}`;
-    // Try to get specific error messages from the backend response
-    const responseData = error.response?.data as any; // Type assertion
-    if (responseData?.errors) {
-      // Handle structured validation errors (common in Elixir/Phoenix)
-      description = Object.entries(responseData.errors)
-        .map(([field, messages]) => `${field} ${(messages as string[]).join(", ")}`)
-        .join("; ");
-    } else if (responseData?.message) {
-      description = responseData.message;
-    } else if (error.message) {
-      description = error.message;
+    const axiosError = error as AxiosError<ApiErrorResponse>; // Type assertion
+    const status = axiosError.response?.status;
+    const responseData = axiosError.response?.data;
+
+    title = `Error${status ? `: ${status}` : ''}`;
+
+    if (status === 401) {
+      // Already handled by interceptor, but prevent generic toast for it
+      title = "Unauthorized";
+      description = "Your session may have expired. Please log in again.";
+      // Don't show toast here if interceptor redirects
+      // toastFn(title, { description });
+      return null; // Don't return validation errors for 401
+    } else if (responseData) {
+      // Use specific messages from API response if available
+      if (responseData.message) {
+        description = responseData.message;
+      }
+      if (responseData.errors) {
+        // Format validation errors for toast description
+        description = Object.entries(responseData.errors)
+          .map(
+            ([field, messages]) =>
+              `${field}: ${messages.join(", ")}`
+          )
+          .join("; ");
+        validationErrors = responseData.errors; // Store for form handling
+        title = "Validation Error"; // More specific title
+      }
+    } else if (axiosError.message) {
+        // Fallback to Axios error message
+        description = axiosError.message;
+        if (axiosError.code === 'ECONNABORTED') {
+            title = "Request Timeout";
+            description = "The request took too long to complete. Please check your connection and try again.";
+        } else if (!axiosError.response) {
+            title = "Network Error";
+            description = "Could not connect to the server. Please check your network connection.";
+        }
     }
   } else if (error instanceof Error) {
+    // Handle non-Axios errors
     description = error.message;
+    title = "Application Error";
   }
 
-  toastFn({
-    variant: "destructive",
-    title: title,
-    description: description,
-  });
-
-  // Return structured errors for form handling if needed
-  if (axios.isAxiosError(error) && error.response?.data?.errors) {
-    return error.response.data.errors;
+  // Display the toast notification (unless it was a 401 handled by interceptor)
+  if (error && !(axios.isAxiosError(error) && error.response?.status === 401)) {
+      toastFn(title, { description });
   }
-  return null;
+
+
+  // Return validation errors for potential use in forms
+  return validationErrors;
 };
 
-export default {
-  login,
-  register,
-  getApiAuthTokens,
-  createApiAuthToken,
-  getVehicles,
-  createVehicle,
-  getIotDevices,
-  createIotDevice,
-  getVehiclesForSelect, // Export optional helpers
-  getApiAuthForSelect, // Export optional helpers
-  handleApiError, // Export error handler utility
+
+// --- Default Export ---
+// Consolidate all API functions into a single export object
+const apiService = {
+  auth: authApi,
+  apiAuthTokens: apiAuthTokenApi,
+  vehicles: vehicleApi,
+  iotDevices: iotDeviceApi,
+  handleApiError, // Expose the error handler utility
 };
+
+export default apiService;
