@@ -8,7 +8,6 @@ import {
 } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 // import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
-
 import { useAuthStore } from "@/stores/authStore";
 import LoginPage from "@/pages/LoginPage";
 import RegisterPage from "@/pages/RegisterPage";
@@ -18,6 +17,7 @@ import VehiclesPage from "@/pages/VehiclesPage";
 // import IotPage from "@/pages/IotPage";
 import { Toaster } from "@/components/ui/sonner"; // Shadcn Toaster
 import { ThemeProvider } from "./components/theme-provider";
+import 'leaflet/dist/leaflet.css';
 
 // import LoadingSpinner from "@/components/shared/LoadingSpinner"; // Create this component
 
@@ -70,7 +70,7 @@ function App() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Router>
-        <Toaster /> {/* Add Shadcn Toaster here */}
+        <Toaster richColors position="top-right" />
         {/* <ReactQueryDevtools initialIsOpen={false} /> */}
       </QueryClientProvider>
     </ThemeProvider>
