@@ -1,248 +1,146 @@
-import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import apiService from "../services/apiService";
+// src/pages/VehiclesPage.tsx
+import React, { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DialogFooter,
-  DialogDescription,
-  DialogClose, // Import DialogClose
-} from "@/components/ui/dialog";
-// import { useToast } from "@/components/ui/use-toast";
-// import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-// import { ExclamationTriangleIcon } from "@radix-ui/react-icons"; // Or other icon
+import { toast } from "sonner";
+import LoadingSpinner from "@/components/shared/LoadingSpinner";
+import { AlertCircle, List, Map as MapIcon } from "lucide-react"; // Import icons
 
-// Import Table components if using Shadcn Table
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-// Import Map components if using react-leaflet
-// import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
-// import 'leaflet/dist/leaflet.css';
-// import L from 'leaflet'; // For custom icons if needed
+// Import your components
+import { VehicleList } from "@/components/vehicles/VehicleList";
+import { CreateVehicleDialog } from "@/components/vehicles/CreateVehicleDialog";
+import { ViewVehicleDialog } from "@/components/vehicles/ViewVehicleDialog";
+import { EditVehicleDialog } from "@/components/vehicles/EditVehicleDialog";
+import { DeleteVehicleDialog } from "@/components/vehicles/DeleteVehicleDialog";
+import { VehicleMap } from "@/components/vehicles/VehicleMap"; // Import the new map component
 
-// --- Create Vehicle Form Component (Example) ---
-// You'd typically put this in a separate file, e.g., src/components/forms/CreateVehicleForm.tsx
-// Using react-hook-form is recommended for complex forms
-const CreateVehicleForm = ({ onSuccess }: { onSuccess: () => void }) => {
-  const queryClient = useQueryClient();
-//   const { toast } = useToast();
-  const [code, setCode] = useState("");
-  const [plate, setPlate] = useState("");
-  // Add other form fields state here...
-
-  const mutation = useMutation({
-    mutationFn: apiService.createVehicle,
-    onSuccess: (data) => {
-    //   toast({
-    //     title: "Vehicle Created",
-    //     description: `Vehicle ${data.code} (${data.plate}) added successfully.`,
-    //   });
-      queryClient.invalidateQueries({ queryKey: ["vehicles"] }); // Refetch vehicles list
-      onSuccess(); // Close the dialog
-    },
-    onError: (error) => {
-    //   apiService.handleApiError(error);
-    console.error("Error creating vehicle:", error);
-      // Potentially set form errors here if using react-hook-form
-    },
-  });
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    // Add validation here if not using react-hook-form/zod
-    mutation.mutate({ code, plate /*, other fields */ });
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="grid gap-4 py-4">
-      {/* Use Label and Input components from Shadcn */}
-      <div className="grid grid-cols-4 items-center gap-4">
-        <Label htmlFor="code" className="text-right">
-          Code
-        </Label>
-        <Input
-          id="code"
-          value={code}
-          onChange={(e:any) => setCode(e.target.value)}
-          className="col-span-3"
-          disabled={mutation.isPending}
-          required
-        />
-      </div>
-      <div className="grid grid-cols-4 items-center gap-4">
-        <Label htmlFor="plate" className="text-right">
-          Plate
-        </Label>
-        <Input
-          id="plate"
-          value={plate}
-          onChange={(e:any) => setPlate(e.target.value)}
-          className="col-span-3"
-          disabled={mutation.isPending}
-          required
-        />
-      </div>
-      {/* Add other form fields here */}
-      <DialogFooter>
-        {/* Add DialogClose for the Cancel button */}
-        <DialogClose asChild>
-          <Button variant="outline" type="button">
-            Cancel
-          </Button>
-        </DialogClose>
-        <Button type="submit" disabled={mutation.isPending}>
-          {mutation.isPending ? "Creating..." : "Create Vehicle"}
-        </Button>
-      </DialogFooter>
-    </form>
-  );
-};
+// Import types and services
+import apiService from "@/services/apiService";
+import { Vehicle } from "@/types/vehicle";
 
 // --- Main Vehicles Page Component ---
 export default function VehiclesPage() {
+  // State for controlling dialogs
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [viewingVehicleId, setViewingVehicleId] = useState<string | null>(null);
+  const [editingVehicleId, setEditingVehicleId] = useState<string | null>(null);
+  const [deletingVehicle, setDeletingVehicle] = useState<{ id: string; code: string } | null>(null);
 
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  // Add state for view toggle (table/map) if implementing map view
-  // const [viewMode, setViewMode] = useState<'table' | 'map'>('table');
-  const getData = async () => {
-    let res = await apiService.getVehicles();
-    console.log("res", res);
-    return res.data;
+  const [viewMode, setViewMode] = useState<'table' | 'map'>('table');
+  const isViewOpen = !!viewingVehicleId;
+  const isEditOpen = !!editingVehicleId;
+  const isDeleteOpen = !!deletingVehicle;
 
-  }
+  // Fetch vehicle list data
   const {
     data: vehicles,
     isLoading,
     error,
     isError,
-  } = useQuery({
+    refetch,
+  } = useQuery<Vehicle[], Error>({
     queryKey: ["vehicles"],
-    queryFn: getData,
-    // Keep data fresh but avoid excessive refetching
-    refetchOnWindowFocus: false
+    queryFn: () => apiService.vehicles.list(),
+    refetchOnWindowFocus: false,
   });
 
-  // --- Render Logic ---
-  if (isLoading) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        {/* <LoadingSpinner /> */}
-        Loading ...
-      </div>
-    );
-  }
+  // --- Action Handlers (Dialogs) ---
+  const handleView = (vehicleId: string) => setViewingVehicleId(vehicleId);
+  const handleEdit = (vehicleId: string) => setEditingVehicleId(vehicleId);
+  const handleDelete = (vehicleId: string, vehicleCode: string) => setDeletingVehicle({ id: vehicleId, code: vehicleCode });
+  // --- End Action Handlers ---
 
+  // --- Render Logic ---
   if (isError) {
+    // Toast is likely already shown by the query's onError or apiService handler
+    console.error("Error fetching vehicles:", error);
     return (
-      <Alert variant="destructive">
-        {/* <ExclamationTriangleIcon className="h-4 w-4" /> */}
-        <AlertTitle>Error Fetching Vehicles</AlertTitle>
-        <AlertDescription>
-          {error?.message || "Could not load vehicle data."}
-        </AlertDescription>
-      </Alert>
+      <div className="container mx-auto py-10 px-4 sm:px-6 lg:px-8">
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Error Fetching Vehicles</AlertTitle>
+          <AlertDescription>
+            Could not load vehicle data. Please try again later or contact support.
+            <div className="mt-4">
+              <Button onClick={() => refetch()} variant="secondary"> Try Again </Button>
+            </div>
+          </AlertDescription>
+        </Alert>
+      </div>
     );
   }
 
   return (
-    <div className="container mx-auto py-10">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Vehicles</h1>
-        {/* Add view toggle buttons here if needed */}
-        <Dialog
-          open={isCreateDialogOpen}
-          onOpenChange={setIsCreateDialogOpen}
-        >
-          <DialogTrigger asChild>
-            <Button>Add Vehicle</Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <DialogTitle>Create New Vehicle</DialogTitle>
-              <DialogDescription>
-                Enter the details for the new vehicle.
-              </DialogDescription>
-            </DialogHeader>
-            <CreateVehicleForm onSuccess={() => setIsCreateDialogOpen(false)} />
-          </DialogContent>
-        </Dialog>
+    <div className="container mx-auto py-10 px-4 sm:px-6 lg:px-8">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+        <h1 className="text-3xl font-bold tracking-tight">Manage Vehicles</h1>
+        <div className="flex gap-2 items-center">
+           {/* --- View Mode Toggle Buttons --- */}
+           <Button
+             variant={viewMode === 'table' ? 'secondary' : 'outline'}
+             size="icon"
+             onClick={() => setViewMode('table')}
+             aria-label="Switch to table view"
+           >
+             <List className="h-4 w-4" />
+           </Button>
+           <Button
+             variant={viewMode === 'map' ? 'secondary' : 'outline'}
+             size="icon"
+             onClick={() => setViewMode('map')}
+             aria-label="Switch to map view"
+           >
+             <MapIcon className="h-4 w-4" />
+           </Button>
+           {/* --- End View Mode Toggle Buttons --- */}
+
+          {/* Create Dialog Trigger */}
+          <CreateVehicleDialog
+            isOpen={isCreateOpen}
+            onOpenChange={setIsCreateOpen}
+          />
+        </div>
       </div>
 
-      {/* Conditional Rendering based on viewMode */}
-      {/* {viewMode === 'table' ? ( */}
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Code</TableHead>
-              <TableHead>Plate</TableHead>
-              <TableHead>Model</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>IoT Devices</TableHead>
-              <TableHead>Last Telemetry</TableHead>
-              {/* Add other columns */}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {vehicles && vehicles?.length > 0 ? (
-              vehicles.map((vehicle:any) => (
-                <TableRow key={vehicle.id}>
-                  <TableCell className="font-medium">{vehicle.code}</TableCell>
-                  <TableCell>{vehicle.plate}</TableCell>
-                  <TableCell>
-                    {vehicle.manufacturer} {vehicle.model} ({vehicle.year})
-                  </TableCell>
-                  <TableCell>{vehicle.status}</TableCell>
-                  <TableCell>{vehicle.iot_devices_count}</TableCell>
-                  <TableCell>
-                    {vehicle.latest_telemetry?.timestamp
-                      ? new Date(
-                          vehicle.latest_telemetry.timestamp
-                        ).toLocaleString()
-                      : "N/A"}
-                  </TableCell>
-                  {/* Render other cells */}
-                </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center">
-                  No vehicles found.
-                  len: {vehicles?.length}
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
-      {/* ) : ( */}
-      {/* <div className="h-[600px] w-full"> */}
-      {/*   <MapContainer center={[DEFAULT_LAT, DEFAULT_LNG]} zoom={DEFAULT_ZOOM} style={{ height: '100%', width: '100%' }}> */}
-      {/*     <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" /> */}
-      {/*     {vehicles?.filter(v => v.latest_telemetry?.lat && v.latest_telemetry?.long).map(vehicle => ( */}
-      {/*       <Marker key={vehicle.id} position={[vehicle.latest_telemetry!.lat!, vehicle.latest_telemetry!.long!]}> */}
-      {/*         <Popup> */}
-      {/*           <b>{vehicle.code} ({vehicle.plate})</b><br /> */}
-      {/*           {vehicle.model} */}
-      {/*         </Popup> */}
-      {/*       </Marker> */}
-      {/*     ))} */}
-      {/*   </MapContainer> */}
-      {/* </div> */}
-      {/* )} */}
+      {/* Show loading spinner overlaying the content area */}
+      {isLoading && (
+         <div className="flex justify-center items-center h-64">
+            <LoadingSpinner />
+         </div>
+      )}
+
+      {/* Conditionally render Table or Map View (only when not loading) */}
+      {!isLoading && viewMode === 'table' && (
+        <VehicleList
+          vehicles={vehicles || []}
+          isLoading={isLoading}
+          onView={handleView}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+        />
+      )}
+      {!isLoading && viewMode === 'map' && (
+        <VehicleMap vehicles={vehicles || []} />
+      )}
+
+      {/* Render Modals/Dialogs (remain unchanged) */}
+      <ViewVehicleDialog
+        vehicleId={viewingVehicleId}
+        isOpen={isViewOpen}
+        onOpenChange={(open) => !open && setViewingVehicleId(null)}
+      />
+      <EditVehicleDialog
+        vehicleId={editingVehicleId}
+        isOpen={isEditOpen}
+        onOpenChange={(open) => !open && setEditingVehicleId(null)}
+      />
+      <DeleteVehicleDialog
+        vehicleId={deletingVehicle?.id ?? null}
+        vehicleCode={deletingVehicle?.code ?? null}
+        isOpen={isDeleteOpen}
+        onOpenChange={(open) => !open && setDeletingVehicle(null)}
+      />
     </div>
   );
 }
