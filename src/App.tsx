@@ -18,6 +18,7 @@ import VehiclesPage from "@/pages/VehiclesPage";
 import { Toaster } from "@/components/ui/sonner"; // Shadcn Toaster
 import { ThemeProvider } from "./components/theme-provider";
 import 'leaflet/dist/leaflet.css';
+import VehicleLiveUpdater from "./pages/TestWebsocketPage";
 
 // import LoadingSpinner from "@/components/shared/LoadingSpinner"; // Create this component
 
@@ -62,6 +63,7 @@ function App() {
               <Route path="/" element={<DashboardPage />} />
               {/* <Route path="/api-auth" element={<ApiAuthPage />} /> */}
               <Route path="/vehicles" element={<VehiclesPage />} />
+              <Route path="/testing" element={<VehicleLiveUpdater/>} />
               {/* <Route path="/iot" element={<IotPage />} /> */}
               {/* Add other protected routes here */}
             </Route>
