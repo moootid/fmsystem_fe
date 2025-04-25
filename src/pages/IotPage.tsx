@@ -1,365 +1,304 @@
-// import { useState } from "react";
-// import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-// import apiService, { IotDevice, SelectOption } from "@/services/apiService"; // Assuming types are exported
-// import { Button } from "@/components/ui/button";
-// import {
-//   Dialog,
-//   DialogContent,
-//   DialogHeader,
-//   DialogTitle,
-//   DialogTrigger,
-//   DialogFooter,
-//   DialogDescription,
-//   DialogClose,
-// } from "@/components/ui/dialog";
-// import { Input } from "@/components/ui/input";
-// import { Label } from "@/components/ui/label";
-// import {
-//   Select,
-//   SelectContent,
-//   SelectItem,
-//   SelectTrigger,
-//   SelectValue,
-// } from "@/components/ui/select";
-// // import { useToast } from "@/components/ui/use-toast";
-// import LoadingSpinner from "@/components/shared/LoadingSpinner";
-// import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-// import {
-//   Table,
-//   TableBody,
-//   TableCell,
-//   TableHead,
-//   TableHeader,
-//   TableRow,
-//   TableCaption,
-// } from "@/components/ui/table";
-// // import { ExclamationTriangleIcon, PlusCircledIcon } from "@radix-ui/react-icons";
-// import { RxExclamationTriangle, RxPlusCircled } from "react-icons/rx";
-// import { Link } from "react-router-dom"; // For linking to vehicle/token pages
+// src/pages/IotPageTest.tsx
+import React, { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import apiService from '@/services/apiService';
+import { IotDevice, CreateIotDevicePayload, UpdateIotDevicePayload } from '@/types/iotDevice'; // Adjust path if needed
 
-// // --- Create IoT Device Form Component ---
-// const CreateIotDeviceForm = ({ onSuccess }: { onSuccess: () => void }) => {
-//   const queryClient = useQueryClient();
-// //   const { toast } = useToast();
-//   const [macAddress, setMacAddress] = useState("");
-//   const [model, setModel] = useState("");
-//   const [hwVersion, setHwVersion] = useState("");
-//   const [swVersion, setSwVersion] = useState("");
-//   const [selectedVehicleId, setSelectedVehicleId] = useState<string | undefined>(undefined);
-//   const [selectedApiAuthId, setSelectedApiAuthId] = useState<string | undefined>(undefined);
+// --- Main Test Page Component ---
+export default function IotPageTest() {
+    const queryClient = useQueryClient();
 
-//   // Fetch data for Select dropdowns
-//   const { data: vehicles, isLoading: isLoadingVehicles } = useQuery<SelectOption[], Error>({
-//     queryKey: ["vehiclesForSelect"],
-//     queryFn: apiService.getVehiclesForSelect,
-//     staleTime: Infinity, // Cache vehicle list longer as it might not change often
-//   });
+    // --- State for Forms ---
+    // Create form state
+    const [createMacAddress, setCreateMacAddress] = useState('');
+    const [createModel, setCreateModel] = useState('');
+    const [createHwVersion, setCreateHwVersion] = useState('');
+    const [createSwVersion, setCreateSwVersion] = useState('');
+    const [createStatus, setCreateStatus] = useState('');
+    const [createNote, setCreateNote] = useState('');
+    const [createVehicleId, setCreateVehicleId] = useState(''); // Keep as string, handle empty/null on submit
+    const [createApiAuthId, setCreateApiAuthId] = useState(''); // Keep as string
 
-//   const { data: apiTokens, isLoading: isLoadingTokens } = useQuery<SelectOption[], Error>({
-//     queryKey: ["apiAuthForSelect"],
-//     queryFn: apiService.getApiAuthForSelect,
-//     staleTime: Infinity, // Cache token list longer
-//   });
-
-//   const mutation = useMutation({
-//     mutationFn: apiService.createIotDevice,
-//     onSuccess: (data) => {
-//       toast({
-//         title: "IoT Device Created",
-//         description: `Device ${data.mac_address} created successfully.`,
-//       });
-//       queryClient.invalidateQueries({ queryKey: ["iotDevices"] });
-//       queryClient.invalidateQueries({ queryKey: ["vehicles"] }); // Invalidate vehicles too as count changes
-//       queryClient.invalidateQueries({ queryKey: ["apiAuth"] }); // Invalidate tokens too as count changes
-//       onSuccess(); // Close the dialog
-//     },
-//     onError: (error) => {
-//       apiService.handleApiError(error, toast);
-//     },
-//   });
-
-//   const handleSubmit = (e: React.FormEvent) => {
-//     e.preventDefault();
-//     if (!macAddress) {
-//       toast({ variant: "destructive", title: "Validation Error", description: "MAC Address is required." });
-//       return;
-//     }
-//     // Add more validation as needed
-
-//     mutation.mutate({
-//       mac_address: macAddress,
-//       model: model || undefined, // Send undefined if empty
-//       hw_version: hwVersion || undefined,
-//       sw_version: swVersion || undefined,
-//       vehicle_id: selectedVehicleId || undefined,
-//       api_auth_token_id: selectedApiAuthId || undefined,
-//     });
-//   };
-
-//   return (
-//     <form onSubmit={handleSubmit} className="grid gap-4 py-4">
-//       {/* MAC Address */}
-//       <div className="grid grid-cols-4 items-center gap-4">
-//         <Label htmlFor="macAddress" className="text-right">
-//           MAC Address*
-//         </Label>
-//         <Input
-//           id="macAddress"
-//           value={macAddress}
-//           onChange={(e) => setMacAddress(e.target.value)}
-//           className="col-span-3"
-//           disabled={mutation.isPending}
-//           required
-//           placeholder="e.g., 00:1A:2B:3C:4D:5E"
-//         />
-//       </div>
-
-//       {/* Model */}
-//       <div className="grid grid-cols-4 items-center gap-4">
-//         <Label htmlFor="model" className="text-right">
-//           Model
-//         </Label>
-//         <Input
-//           id="model"
-//           value={model}
-//           onChange={(e) => setModel(e.target.value)}
-//           className="col-span-3"
-//           disabled={mutation.isPending}
-//           placeholder="(Optional)"
-//         />
-//       </div>
-
-//       {/* HW Version */}
-//       <div className="grid grid-cols-4 items-center gap-4">
-//         <Label htmlFor="hwVersion" className="text-right">
-//           HW Version
-//         </Label>
-//         <Input
-//           id="hwVersion"
-//           value={hwVersion}
-//           onChange={(e) => setHwVersion(e.target.value)}
-//           className="col-span-3"
-//           disabled={mutation.isPending}
-//           placeholder="(Optional)"
-//         />
-//       </div>
-
-//       {/* SW Version */}
-//       <div className="grid grid-cols-4 items-center gap-4">
-//         <Label htmlFor="swVersion" className="text-right">
-//           SW Version
-//         </Label>
-//         <Input
-//           id="swVersion"
-//           value={swVersion}
-//           onChange={(e) => setSwVersion(e.target.value)}
-//           className="col-span-3"
-//           disabled={mutation.isPending}
-//           placeholder="(Optional)"
-//         />
-//       </div>
-
-//       {/* Assign Vehicle Select */}
-//       <div className="grid grid-cols-4 items-center gap-4">
-//         <Label htmlFor="vehicle" className="text-right">
-//           Assign Vehicle
-//         </Label>
-//         <Select
-//           value={selectedVehicleId}
-//           onValueChange={setSelectedVehicleId}
-//           disabled={isLoadingVehicles || mutation.isPending}
-//         >
-//           <SelectTrigger className="col-span-3">
-//             <SelectValue placeholder={isLoadingVehicles ? "Loading vehicles..." : "Select vehicle (Optional)"} />
-//           </SelectTrigger>
-//           <SelectContent>
-//             <SelectItem value="none">-- None --</SelectItem> {/* Option to unassign/not assign */}
-//             {vehicles?.map((vehicle) => (
-//               <SelectItem key={vehicle.value} value={vehicle.value}>
-//                 {vehicle.label}
-//               </SelectItem>
-//             ))}
-//             {!isLoadingVehicles && (!vehicles || vehicles.length === 0) && (
-//                  <div className="px-2 py-1.5 text-sm text-muted-foreground">No vehicles available</div>
-//             )}
-//           </SelectContent>
-//         </Select>
-//       </div>
-
-//       {/* Assign API Token Select */}
-//       <div className="grid grid-cols-4 items-center gap-4">
-//         <Label htmlFor="apiToken" className="text-right">
-//           Assign Token
-//         </Label>
-//         <Select
-//           value={selectedApiAuthId}
-//           onValueChange={setSelectedApiAuthId}
-//           disabled={isLoadingTokens || mutation.isPending}
-//         >
-//           <SelectTrigger className="col-span-3">
-//             <SelectValue placeholder={isLoadingTokens ? "Loading tokens..." : "Select API token (Optional)"} />
-//           </SelectTrigger>
-//           <SelectContent>
-//              <SelectItem value="none">-- None --</SelectItem> {/* Option to unassign/not assign */}
-//             {apiTokens?.map((token) => (
-//               <SelectItem key={token.value} value={token.value}>
-//                 {token.label}
-//               </SelectItem>
-//             ))}
-//              {!isLoadingTokens && (!apiTokens || apiTokens.length === 0) && (
-//                  <div className="px-2 py-1.5 text-sm text-muted-foreground">No API tokens available</div>
-//             )}
-//           </SelectContent>
-//         </Select>
-//       </div>
+    // Update form state
+    const [updateId, setUpdateId] = useState('');
+    const [updateModel, setUpdateModel] = useState('');
+    const [updateHwVersion, setUpdateHwVersion] = useState('');
+    const [updateSwVersion, setUpdateSwVersion] = useState('');
+    const [updateStatus, setUpdateStatus] = useState('');
+    const [updateNote, setUpdateNote] = useState('');
+    const [updateVehicleId, setUpdateVehicleId] = useState('');
+    const [updateApiAuthId, setUpdateApiAuthId] = useState('');
 
 
-//       <DialogFooter>
-//         <DialogClose asChild>
-//           <Button variant="outline" type="button">
-//             Cancel
-//           </Button>
-//         </DialogClose>
-//         <Button type="submit" disabled={mutation.isPending || isLoadingVehicles || isLoadingTokens}>
-//           {mutation.isPending ? (
-//             <>
-//               <LoadingSpinner size="sm" /> <span className="ml-2">Creating...</span>
-//             </>
-//           ) : (
-//             "Create Device"
-//           )}
-//         </Button>
-//       </DialogFooter>
-//     </form>
-//   );
-// };
+    // --- Fetch IoT Devices Query ---
+    const {
+        data: iotDevices = [], // Default to empty array
+        isLoading: isLoadingDevices,
+        isError: isFetchError,
+        error: fetchError,
+        refetch: refetchDevices,
+    } = useQuery<IotDevice[], Error>({
+        queryKey: ['testIotDevices'], // Unique key for this test page
+        queryFn: () => apiService.iotDevices.list().then((response:any) => response.data), // Assuming list returns { data: [...] }
+        // If apiService.iotDevices.list() directly returns IotDevice[], remove .then()
+    });
+
+    // --- Create IoT Device Mutation ---
+    const {
+        mutate: createDevice,
+        isPending: isCreating,
+        error: createError,
+    } = useMutation<IotDevice, Error, CreateIotDevicePayload>({
+        mutationFn: (payload) => apiService.iotDevices.create(payload).then((res:any) => res.data), // Assuming create returns { data: {...} }
+        // If apiService.iotDevices.create() directly returns IotDevice, remove .then()
+        onSuccess: (data) => {
+            console.log('Create Success:', data);
+            alert(`IoT Device "${data.mac_address}" created successfully! (ID: ${data.id})`);
+            queryClient.invalidateQueries({ queryKey: ['testIotDevices'] }); // Refetch the list
+            // Clear form
+            setCreateMacAddress('');
+            setCreateModel('');
+            setCreateHwVersion('');
+            setCreateSwVersion('');
+            setCreateStatus('');
+            setCreateNote('');
+            setCreateVehicleId('');
+            setCreateApiAuthId('');
+        },
+        onError: (error) => {
+            console.error('Create Error:', error);
+            alert(`Failed to create IoT Device: ${error.message}`);
+            // Optionally use apiService.handleApiError here if it provides useful formatting
+        },
+    });
+
+    // --- Update IoT Device Mutation ---
+    const {
+        mutate: updateDevice,
+        isPending: isUpdating,
+        error: updateError,
+    } = useMutation<IotDevice, Error, { id: string; payload: UpdateIotDevicePayload }>({
+        mutationFn: ({ id, payload }) => apiService.iotDevices.update(id, payload).then((res:any) => res.data), // Assuming update returns { data: {...} }
+        // If apiService.iotDevices.update() directly returns IotDevice, remove .then()
+        onSuccess: (data) => {
+            console.log('Update Success:', data);
+            alert(`IoT Device (ID: ${data.id}) updated successfully!`);
+            queryClient.invalidateQueries({ queryKey: ['testIotDevices'] });
+            // Clear form
+            setUpdateId('');
+            setUpdateModel('');
+            setUpdateHwVersion('');
+            setUpdateSwVersion('');
+            setUpdateStatus('');
+            setUpdateNote('');
+            setUpdateVehicleId('');
+            setUpdateApiAuthId('');
+        },
+        onError: (error) => {
+            console.error('Update Error:', error);
+            alert(`Failed to update IoT Device: ${error.message}`);
+        },
+    });
+
+    // --- Delete IoT Device Mutation ---
+    const {
+        mutate: deleteDevice,
+        isPending: isDeleting,
+        error: deleteError,
+    } = useMutation<void, Error, string>({ // Takes ID string
+        mutationFn: (id) => apiService.iotDevices.delete(id),
+        onSuccess: (_, deletedId) => {
+            console.log('Delete Success: ID', deletedId);
+            alert(`IoT Device (ID: ${deletedId}) deleted successfully!`);
+            queryClient.invalidateQueries({ queryKey: ['testIotDevices'] });
+        },
+        onError: (error, deletedId) => {
+            console.error('Delete Error for ID:', deletedId, error);
+            alert(`Failed to delete IoT Device (ID: ${deletedId}): ${error.message}`);
+        },
+    });
 
 
-// // --- Main IoT Page Component ---
-// export default function IotPage() {
-//   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+    // --- Event Handlers ---
+    const handleCreateSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!createMacAddress) {
+            alert('MAC Address is required for creating an IoT Device.');
+            return;
+        }
+        const payload: CreateIotDevicePayload = {
+            mac_address: createMacAddress,
+            ...(createModel && { model: createModel }),
+            ...(createHwVersion && { hw_version: createHwVersion }),
+            ...(createSwVersion && { sw_version: createSwVersion }),
+            ...(createStatus && { status: createStatus }),
+            ...(createNote && { note: createNote }),
+            vehicle_id: createVehicleId || null, // Send null if empty
+            api_auth_id: createApiAuthId || null, // Send null if empty
+        };
+        createDevice(payload);
+    };
 
-//   const {
-//     data: iotDevices,
-//     isLoading,
-//     error,
-//     isError,
-//   } = useQuery<IotDevice[], Error>({ // Add explicit types
-//     queryKey: ["iotDevices"],
-//     queryFn: apiService.getIotDevices,
-//     staleTime: 1000 * 60 * 1, // 1 minute
-//   });
+    const handleUpdateSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!updateId) {
+            alert('IoT Device ID is required for updating.');
+            return;
+        }
+        // Construct payload with only fields that have values in the form
+        // Allows selective updates and sending null to clear linked IDs
+        const payload: UpdateIotDevicePayload = {
+            ...(updateModel !== undefined && { model: updateModel || null }), // Send null if cleared
+            ...(updateHwVersion !== undefined && { hw_version: updateHwVersion || null }),
+            ...(updateSwVersion !== undefined && { sw_version: updateSwVersion || null }),
+            ...(updateStatus !== undefined && { status: updateStatus || null }),
+            ...(updateNote !== undefined && { note: updateNote || null }),
+            vehicle_id: updateVehicleId || null, // Send null if empty in form
+            api_auth_id: updateApiAuthId || null, // Send null if empty in form
+        };
 
-//   // --- Render Logic ---
-//   const renderContent = () => {
-//      if (isLoading) {
-//       return (
-//         <div className="flex justify-center items-center h-64">
-//           <LoadingSpinner />
-//         </div>
-//       );
-//     }
+        // Prevent sending empty payload if no fields were filled
+        if (Object.keys(payload).length === 0) {
+             alert("Please provide at least one field to update.");
+             return;
+        }
+        // Or refine: check if payload is different from original values before sending
 
-//     if (isError) {
-//       return (
-//         <Alert variant="destructive" className="mt-4">
-//           <RxExclamationTriangle className="h-4 w-4" />
-//           <AlertTitle>Error Fetching IoT Devices</AlertTitle>
-//           <AlertDescription>
-//             {error?.message || "Could not load IoT device data."}
-//           </AlertDescription>
-//         </Alert>
-//       );
-//     }
+        updateDevice({ id: updateId, payload });
+    };
 
-//     return (
-//        <div className="rounded-md border mt-4">
-//         <Table>
-//            <TableCaption>
-//             {(!iotDevices || iotDevices.length === 0) && "No IoT devices found."}
-//           </TableCaption>
-//           <TableHeader>
-//             <TableRow>
-//               <TableHead>MAC Address</TableHead>
-//               <TableHead>Model</TableHead>
-//               <TableHead>HW Ver.</TableHead>
-//               <TableHead>SW Ver.</TableHead>
-//               <TableHead>Status</TableHead>
-//               <TableHead>Assigned Vehicle</TableHead>
-//               <TableHead>Assigned API Token</TableHead>
-//                {/* Add Actions column if needed */}
-//             </TableRow>
-//           </TableHeader>
-//           <TableBody>
-//             {iotDevices && iotDevices.length > 0 ? (
-//               iotDevices.map((device) => (
-//                 <TableRow key={device.id}>
-//                   <TableCell className="font-mono">{device.mac_address}</TableCell>
-//                   <TableCell>{device.model || "-"}</TableCell>
-//                   <TableCell>{device.hw_version || "-"}</TableCell>
-//                   <TableCell>{device.sw_version || "-"}</TableCell>
-//                   <TableCell>{device.status}</TableCell>
-//                   <TableCell>
-//                     {device.vehicle ? (
-//                       <Link to={`/vehicles/${device.vehicle.id}`} className="text-primary hover:underline">
-//                          {device.vehicle.code} ({device.vehicle.plate})
-//                       </Link>
-//                     ) : (
-//                       "-"
-//                     )}
-//                   </TableCell>
-//                    <TableCell>
-//                     {device.api_auth_token ? (
-//                       <Link to={`/api-auth#${device.api_auth_token.id}`} className="text-primary hover:underline"> {/* Simple anchor link */}
-//                          {device.api_auth_token.title}
-//                       </Link>
-//                     ) : (
-//                       "-"
-//                     )}
-//                   </TableCell>
-//                    {/* Add TableCell for actions */}
-//                 </TableRow>
-//               ))
-//             ) : (
-//                <TableRow>
-//                 <TableCell colSpan={7} className="h-24 text-center">
-//                   No IoT devices registered yet.
-//                 </TableCell>
-//               </TableRow>
-//             )}
-//           </TableBody>
-//         </Table>
-//       </div>
-//     );
-//   };
+    const handleDeleteClick = (id: string, macAddress: string) => {
+        if (window.confirm(`Are you sure you want to delete the device "${macAddress}" (ID: ${id})?`)) {
+            deleteDevice(id);
+        }
+    };
 
-//   return (
-//     <div className="container mx-auto py-10">
-//       <div className="flex justify-between items-center mb-6">
-//         <h1 className="text-3xl font-bold">IoT Devices</h1>
-//         <Dialog
-//           open={isCreateDialogOpen}
-//           onOpenChange={setIsCreateDialogOpen}
-//         >
-//           <DialogTrigger asChild>
-//             <Button>
-//               <RxPlusCircled className="mr-2 h-4 w-4" /> Add Device
-//             </Button>
-//           </DialogTrigger>
-//           <DialogContent className="sm:max-w-[550px]"> {/* Slightly wider dialog */}
-//             <DialogHeader>
-//               <DialogTitle>Register New IoT Device</DialogTitle>
-//               <DialogDescription>
-//                 Enter the details for the new IoT device and optionally assign it.
-//               </DialogDescription>
-//             </DialogHeader>
-//             <CreateIotDeviceForm onSuccess={() => setIsCreateDialogOpen(false)} />
-//           </DialogContent>
-//         </Dialog>
-//       </div>
+    // Helper to render linked item ID or 'N/A'
+    const renderLinkedId = (item: { id: string } | null | undefined) => {
+        return item?.id ? <code style={{ fontSize: '0.8em' }}>{item.id}</code> : 'N/A';
+    }
 
-//       {renderContent()}
+    // --- Render Logic ---
+    return (
+        <div style={{ padding: '20px', fontFamily: 'sans-serif' }}>
+            <h1>IoT Device Backend Test Page</h1>
+            <hr style={{ margin: '20px 0' }} />
 
-//     </div>
-//   );
-// }
+            {/* --- CREATE FORM --- */}
+            <section>
+                <h2>Create New IoT Device</h2>
+                <form onSubmit={handleCreateSubmit} style={{ marginBottom: '10px', display: 'grid', gridTemplateColumns: '150px 1fr', gap: '5px 10px', alignItems: 'center' }}>
+                    <label>MAC Address*:</label>
+                    <input type="text" value={createMacAddress} onChange={(e) => setCreateMacAddress(e.target.value)} required disabled={isCreating} placeholder="e.g., 00:11:22:AA:BB:CC"/>
+
+                    <label>Model:</label>
+                    <input type="text" value={createModel} onChange={(e) => setCreateModel(e.target.value)} disabled={isCreating} placeholder="e.g., ESP32-WROOM"/>
+
+                    <label>HW Version:</label>
+                    <input type="text" value={createHwVersion} onChange={(e) => setCreateHwVersion(e.target.value)} disabled={isCreating} placeholder="e.g., v1.2"/>
+
+                    <label>SW Version:</label>
+                    <input type="text" value={createSwVersion} onChange={(e) => setCreateSwVersion(e.target.value)} disabled={isCreating} placeholder="e.g., v0.1.0"/>
+
+                    <label>Status:</label>
+                    <input type="text" value={createStatus} onChange={(e) => setCreateStatus(e.target.value)} disabled={isCreating} placeholder="e.g., Online, Provisioning"/>
+
+                    <label>Note:</label>
+                    <input type="text" value={createNote} onChange={(e) => setCreateNote(e.target.value)} disabled={isCreating}/>
+
+                    <label>Vehicle ID (Opt):</label>
+                    <input type="text" value={createVehicleId} onChange={(e) => setCreateVehicleId(e.target.value)} disabled={isCreating} placeholder="UUID of vehicle to link"/>
+
+                    <label>API Auth ID (Opt):</label>
+                    <input type="text" value={createApiAuthId} onChange={(e) => setCreateApiAuthId(e.target.value)} disabled={isCreating} placeholder="UUID of API key to link"/>
+
+                    <div></div>{/* Spacer */}
+                    <button type="submit" disabled={isCreating} style={{ marginTop: '10px', justifySelf: 'start' }}>
+                        {isCreating ? 'Creating...' : 'Create Device'}
+                    </button>
+                    {createError && <p style={{ color: 'red', gridColumn: 'span 2' }}>Error creating: {createError.message}</p>}
+                </form>
+            </section>
+
+            <hr style={{ margin: '20px 0' }} />
+
+            {/* --- UPDATE FORM --- */}
+            <section>
+                <h2>Update IoT Device</h2>
+                <form onSubmit={handleUpdateSubmit} style={{ marginBottom: '10px', display: 'grid', gridTemplateColumns: '150px 1fr', gap: '5px 10px', alignItems: 'center' }}>
+                    <label>ID to Update*:</label>
+                    <input type="text" value={updateId} onChange={(e) => setUpdateId(e.target.value)} required placeholder="Enter ID of device to update" disabled={isUpdating} />
+
+                    <label>New Model:</label>
+                    <input type="text" value={updateModel} onChange={(e) => setUpdateModel(e.target.value)} placeholder="(empty to clear, unchanged if blank)" disabled={isUpdating} />
+
+                    <label>New HW Version:</label>
+                    <input type="text" value={updateHwVersion} onChange={(e) => setUpdateHwVersion(e.target.value)} placeholder="(empty to clear, unchanged if blank)" disabled={isUpdating} />
+
+                    <label>New SW Version:</label>
+                    <input type="text" value={updateSwVersion} onChange={(e) => setUpdateSwVersion(e.target.value)} placeholder="(empty to clear, unchanged if blank)" disabled={isUpdating} />
+
+                    <label>New Status:</label>
+                    <input type="text" value={updateStatus} onChange={(e) => setUpdateStatus(e.target.value)} placeholder="(empty to clear, unchanged if blank)" disabled={isUpdating} />
+
+                    <label>New Note:</label>
+                    <input type="text" value={updateNote} onChange={(e) => setUpdateNote(e.target.value)} placeholder="(empty to clear, unchanged if blank)" disabled={isUpdating} />
+
+                    <label>New Vehicle ID:</label>
+                    <input type="text" value={updateVehicleId} onChange={(e) => setUpdateVehicleId(e.target.value)} placeholder="(empty to unlink)" disabled={isUpdating} />
+
+                    <label>New API Auth ID:</label>
+                    <input type="text" value={updateApiAuthId} onChange={(e) => setUpdateApiAuthId(e.target.value)} placeholder="(empty to unlink)" disabled={isUpdating} />
+
+                     <div></div>{/* Spacer */}
+                    <button type="submit" disabled={isUpdating || !updateId} style={{ marginTop: '10px', justifySelf: 'start' }}>
+                        {isUpdating ? 'Updating...' : 'Update Device'}
+                    </button>
+                    {updateError && <p style={{ color: 'red', gridColumn: 'span 2' }}>Error updating: {updateError.message}</p>}
+                </form>
+            </section>
+
+            <hr style={{ margin: '20px 0' }} />
+
+            {/* --- LIST DEVICES --- */}
+            <section>
+                <h2>Existing IoT Devices</h2>
+                <button onClick={() => refetchDevices()} disabled={isLoadingDevices}>
+                    {isLoadingDevices ? 'Refreshing...' : 'Refresh List'}
+                </button>
+
+                {isLoadingDevices && <p>Loading devices...</p>}
+                {isFetchError && <p style={{ color: 'red' }}>Error fetching devices: {fetchError?.message}</p>}
+
+                {!isLoadingDevices && !isFetchError && iotDevices.length === 0 && <p>No IoT devices found.</p>}
+
+                {!isLoadingDevices && iotDevices.length > 0 && (
+                    <ul style={{ listStyle: 'none', padding: 0 }}>
+                        {iotDevices.map((device) => (
+                            <li key={device.id} style={{ border: '1px solid #ccc', marginBottom: '15px', padding: '10px' }}>
+                                <div><strong>MAC:</strong> {device.mac_address}</div>
+                                <div><strong>ID:</strong> {device.id}</div>
+                                <div><strong>Model:</strong> {device.model || 'N/A'}</div>
+                                <div><strong>HW Ver:</strong> {device.hw_version || 'N/A'} | <strong>SW Ver:</strong> {device.sw_version || 'N/A'}</div>
+                                <div><strong>Status:</strong> {device.status || 'N/A'}</div>
+                                <div><strong>Note:</strong> {device.note || 'N/A'}</div>
+                                <div><strong>Linked Vehicle:</strong> {renderLinkedId(device.vehicle)}</div>
+                                <div><strong>Linked API Key:</strong> {renderLinkedId(device.api_auth_token)}</div>
+                                {/* Add created/updated at if available */}
+                                {/* <div><strong>Created:</strong> {device.inserted_at ? new Date(device.inserted_at).toLocaleString() : 'N/A'}</div> */}
+                                <button
+                                    onClick={() => handleDeleteClick(device.id, device.mac_address)}
+                                    disabled={isDeleting}
+                                    style={{ color: 'red', marginLeft: '10px', marginTop: '5px' }}
+                                >
+                                    Delete
+                                </button>
+                            </li>
+                        ))}
+                    </ul>
+                )}
+                {deleteError && <p style={{ color: 'red' }}>Error deleting: {deleteError.message}</p>}
+            </section>
+        </div>
+    );
+}

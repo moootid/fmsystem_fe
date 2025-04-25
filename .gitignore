@@ -23,3 +23,6 @@ dist-ssr
 *.sln
 *.sw?
 diff.txt
+.repomixignore
+Fmsystem frontend.txt
+repomix.config.json

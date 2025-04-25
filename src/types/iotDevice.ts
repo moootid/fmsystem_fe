@@ -14,6 +14,7 @@ export interface IotDevice {
     // Define nested structures based on what your API actually returns
     vehicle: { id: string; code: string; plate: string } | null;
     api_auth_token: { id: string; title: string } | null;
+    note?: string | null; // Optional note field
     // created_at?: string; // ISO 8601 string
     // updated_at?: string; // ISO 8601 string
   }
@@ -21,16 +22,20 @@ export interface IotDevice {
   export interface CreateIotDevicePayload {
     mac_address: string;
     vehicle_id?: string | null; // Use null if API expects it for unlinking
-    api_auth_token_id?: string | null;
+    api_auth_id?: string | null;
     model?: string;
     hw_version?: string;
     sw_version?: string;
     status?: string;
   }
   
-  export interface UpdateIotDevicePayload extends Partial<Omit<IotDevice, 'id' | 'vehicle' | 'api_auth_token'>> {
-    vehicle_id?: string | null; // Allow updating links
-    api_auth_token_id?: string | null;
-    // Define other specific updatable fields
-  }
-  
+  export interface UpdateIotDevicePayload {
+    // Mac address likely immutable, exclude it
+    model?: string | null;
+    hw_version?: string | null;
+    sw_version?: string | null;
+    status?: string | null;
+    note?: string | null;
+    vehicle_id?: string | null; // Allow updating/unlinking
+    api_auth_id?: string | null; // Allow updating/unlinking
+}

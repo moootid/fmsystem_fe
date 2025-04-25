@@ -74,7 +74,8 @@ const authApi = {
 const apiAuthTokenApi = {
   list: async (): Promise<ApiAuthToken[]> => {
     const response = await apiClient.get<ApiAuthToken[]>("/api_auth");
-    return response.data;
+    console.log("res : ",response.data)
+    return response?.data?.data;
   },
 
   create: async (data: CreateApiAuthTokenPayload): Promise<ApiAuthToken> => {
