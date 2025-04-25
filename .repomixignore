@@ -1,0 +1,30 @@
+# Add patterns to ignore here, one per line
+# Example:
+# *.log
+# tmp/
+.eslintrc.cjs
+.gitattributes
+.gitignore
+.repomixignore
+components.json
+docker-compose.yml
+Dockerfile
+package.json
+postcss.config.js
+public
+README.md
+repomix.config.json
+setup.sh
+src/assets
+src/vite-env.d.ts
+tailwind.config.js
+To Do.md
+tsconfig.app.json
+tsconfig.json
+tsconfig.node.json
+tsconfig.node.tsbuildinfo
+vite.config.d.ts
+vite.config.js
+vite.config.ts
+src/components/ui
+create_diff.sh

@@ -1,0 +1,3257 @@
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+
+================================================================
+File Summary
+================================================================
+
+Purpose:
+--------
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+
+File Format:
+------------
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Multiple file entries, each consisting of:
+  a. A separator line (================)
+  b. The file path (File: path/to/file)
+  c. Another separator line
+  d. The full contents of the file
+  e. A blank line
+
+Usage Guidelines:
+-----------------
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+
+Notes:
+------
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+
+Additional Info:
+----------------
+
+================================================================
+Directory Structure
+================================================================
+src/
+  components/
+    shared/
+      LoadingSpinner.tsx
+    vehicles/
+      CreateVehicleDialog.tsx
+      CreateVehicleForm.tsx
+      DeleteVehicleDialog.tsx
+      EditVehicleDialog.tsx
+      EditVehicleForm.tsx
+      VehicleList.tsx
+      VehicleMap.tsx
+      ViewVehicleDialog.tsx
+    theme-provider.tsx
+    VehicleItem.tsx
+  lib/
+    authUtils.ts
+    utils.ts
+  pages/
+    DashboardPage.tsx
+    LoginPage.tsx
+    RegisterPage.tsx
+    TestWebsocketPage.tsx
+    VehiclesPage.tsx
+  services/
+    apiService.ts
+  stores/
+    authStore.ts
+  types/
+    api.ts
+    apiAuthToken.ts
+    auth.ts
+    iotDevice.ts
+    vehicle.ts
+  App.tsx
+  index.css
+  main.tsx
+eslint.config.js
+index.html
+
+================================================================
+Files
+================================================================
+
+================
+File: src/components/shared/LoadingSpinner.tsx
+================
+import { AiOutlineLoading3Quarters } from "react-icons/ai";
+
+const LoadingSpinner = () => {
+    return (
+        <AiOutlineLoading3Quarters 
+            className="animate-spin h-5 w-5"    
+        />
+    );
+};
+
+export default LoadingSpinner;
+
+================
+File: src/components/vehicles/CreateVehicleDialog.tsx
+================
+// src/components/vehicles/CreateVehicleDialog.tsx
+import React from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { PlusCircle } from "lucide-react";
+import { CreateVehicleForm } from "./CreateVehicleForm";
+
+interface CreateVehicleDialogProps {
+  isOpen: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSuccess?: () => void; // Optional: If extra actions needed after success besides closing
+}
+
+export const CreateVehicleDialog: React.FC<CreateVehicleDialogProps> = ({
+  isOpen,
+  onOpenChange,
+  onSuccess,
+}) => {
+  const handleSuccess = () => {
+    onOpenChange(false); // Close dialog on success
+    onSuccess?.(); // Call additional success handler if provided
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+      <DialogTrigger asChild>
+        <Button>
+          <PlusCircle className="mr-2 h-4 w-4" /> Add Vehicle
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Create New Vehicle</DialogTitle>
+          <DialogDescription>
+            Fill in the details below. Fields marked with * are required.
+          </DialogDescription>
+        </DialogHeader>
+        {/* Render form only when dialog is open to reset state easily */}
+        {isOpen && <CreateVehicleForm onSuccess={handleSuccess} />}
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+================
+File: src/components/vehicles/CreateVehicleForm.tsx
+================
+// src/components/vehicles/CreateVehicleForm.tsx
+import React, { useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
+import {
+  DialogFooter,
+  DialogClose,
+} from "@/components/ui/dialog"; // Keep Footer/Close
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { toast } from "sonner";
+import { Loader2, AlertCircle } from "lucide-react";
+import apiService from "@/services/apiService";
+import {
+  Vehicle,
+  CreateVehiclePayload,
+  ApiValidationError,
+} from "@/types/vehicle";
+
+interface CreateVehicleFormProps {
+  onSuccess: () => void;
+}
+
+const getFieldError = (
+  errors: ApiValidationError | null,
+  field: keyof ApiValidationError,
+): string | null => {
+  return errors?.[field]?.[0] ?? null;
+};
+
+
+export const CreateVehicleForm: React.FC<CreateVehicleFormProps> = ({
+  onSuccess,
+}) => {
+  const queryClient = useQueryClient();
+
+  // State for each form field
+  const [code, setCode] = useState("");
+  const [plate, setPlate] = useState("");
+  const [vin, setVin] = useState("");
+  const [manufacturer, setManufacturer] = useState("");
+  const [model, setModel] = useState("");
+  const [year, setYear] = useState<number | "">("");
+  const [status, setStatus] = useState("");
+  const [type, setType] = useState("");
+  const [color, setColor] = useState("");
+
+  const [validationErrors, setValidationErrors] =
+    useState<ApiValidationError | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  const mutation = useMutation<Vehicle, Error, CreateVehiclePayload>({
+    mutationFn: (payload) =>
+      apiService.vehicles.create(payload).then((response: any) => response.data),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["vehicles"] });
+      toast.success("Vehicle Created", {
+        description: `Vehicle ${data.code} (${data.plate}) added successfully.`,
+      });
+      setValidationErrors(null);
+      setSubmitError(null);
+      onSuccess();
+    },
+    onError: (error) => {
+      const errors = apiService.handleApiError(error, (opts:any) =>
+        toast.error(opts),
+      );
+      if (errors && typeof errors === "object") {
+        setValidationErrors(errors as ApiValidationError);
+        setSubmitError(null);
+      } else {
+        setSubmitError("An unexpected error occurred during creation.");
+        setValidationErrors(null);
+      }
+      console.error("Create vehicle error details:", error);
+    },
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setValidationErrors(null);
+    setSubmitError(null);
+
+    if (!code || !plate || !vin) {
+      setSubmitError("Code, Plate, and VIN are required fields.");
+      return;
+    }
+
+    const payload: CreateVehiclePayload = {
+      code,
+      plate,
+      vin,
+      manufacturer: manufacturer || undefined,
+      model: model || undefined,
+      year: year === "" ? undefined : year,
+      status: status || undefined,
+      type: type || undefined,
+      color: color || undefined,
+    };
+
+    mutation.mutate(payload);
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="grid gap-4 py-4">
+      {submitError && (
+        <Alert variant="destructive" className="mb-4 col-span-4">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>{submitError}</AlertDescription>
+        </Alert>
+      )}
+
+      {/* --- Form Fields --- */}
+      {/* Code */}
+      <div className="grid grid-cols-4 items-start gap-4">
+        <Label htmlFor="code" className="text-right pt-2"> Code* </Label>
+        <div className="col-span-3">
+          <Input id="code" value={code} onChange={(e) => setCode(e.target.value)} disabled={mutation.isPending} required aria-required="true" className={getFieldError(validationErrors, "code") ? "border-destructive" : ""} />
+          {getFieldError(validationErrors, "code") && ( <p className="text-sm text-destructive mt-1"> {getFieldError(validationErrors, "code")} </p> )}
+        </div>
+      </div>
+
+      {/* Plate */}
+       <div className="grid grid-cols-4 items-start gap-4">
+        <Label htmlFor="plate" className="text-right pt-2"> Plate* </Label>
+        <div className="col-span-3">
+          <Input id="plate" value={plate} onChange={(e) => setPlate(e.target.value)} disabled={mutation.isPending} required aria-required="true" className={getFieldError(validationErrors, "plate") ? "border-destructive" : ""} />
+          {getFieldError(validationErrors, "plate") && ( <p className="text-sm text-destructive mt-1"> {getFieldError(validationErrors, "plate")} </p> )}
+        </div>
+      </div>
+
+      {/* VIN */}
+      <div className="grid grid-cols-4 items-start gap-4">
+        <Label htmlFor="vin" className="text-right pt-2"> VIN* </Label>
+        <div className="col-span-3">
+          <Input id="vin" value={vin} onChange={(e) => setVin(e.target.value)} disabled={mutation.isPending} required aria-required="true" className={getFieldError(validationErrors, "vin") ? "border-destructive" : ""} />
+          {getFieldError(validationErrors, "vin") && ( <p className="text-sm text-destructive mt-1"> {getFieldError(validationErrors, "vin")} </p> )}
+        </div>
+      </div>
+
+       {/* Manufacturer */}
+      <div className="grid grid-cols-4 items-start gap-4">
+        <Label htmlFor="manufacturer" className="text-right pt-2"> Manufacturer </Label>
+        <div className="col-span-3">
+          <Input id="manufacturer" value={manufacturer} onChange={(e) => setManufacturer(e.target.value)} disabled={mutation.isPending} className={getFieldError(validationErrors, "manufacturer") ? "border-destructive" : ""} />
+          {getFieldError(validationErrors, "manufacturer") && ( <p className="text-sm text-destructive mt-1"> {getFieldError(validationErrors, "manufacturer")} </p> )}
+        </div>
+      </div>
+
+      {/* Model */}
+      <div className="grid grid-cols-4 items-start gap-4">
+        <Label htmlFor="model" className="text-right pt-2"> Model </Label>
+        <div className="col-span-3">
+          <Input id="model" value={model} onChange={(e) => setModel(e.target.value)} disabled={mutation.isPending} className={getFieldError(validationErrors, "model") ? "border-destructive" : ""} />
+          {getFieldError(validationErrors, "model") && ( <p className="text-sm text-destructive mt-1"> {getFieldError(validationErrors, "model")} </p> )}
+        </div>
+      </div>
+
+      {/* Year */}
+      <div className="grid grid-cols-4 items-start gap-4">
+        <Label htmlFor="year" className="text-right pt-2"> Year </Label>
+        <div className="col-span-3">
+          <Input id="year" type="number" value={year} onChange={(e) => setYear(e.target.value === "" ? "" : parseInt(e.target.value, 10))} placeholder="e.g., 2023" min="1900" max={new Date().getFullYear() + 1} disabled={mutation.isPending} className={getFieldError(validationErrors, "year") ? "border-destructive" : ""} />
+          {getFieldError(validationErrors, "year") && ( <p className="text-sm text-destructive mt-1"> {getFieldError(validationErrors, "year")} </p> )}
+        </div>
+      </div>
+
+      {/* Status */}
+      <div className="grid grid-cols-4 items-start gap-4">
+        <Label htmlFor="status" className="text-right pt-2"> Status </Label>
+        <div className="col-span-3">
+          <Input id="status" value={status} onChange={(e) => setStatus(e.target.value)} placeholder="e.g., Active, Maintenance" disabled={mutation.isPending} className={getFieldError(validationErrors, "status") ? "border-destructive" : ""} />
+          {getFieldError(validationErrors, "status") && ( <p className="text-sm text-destructive mt-1"> {getFieldError(validationErrors, "status")} </p> )}
+        </div>
+      </div>
+
+      {/* Type */}
+      <div className="grid grid-cols-4 items-start gap-4">
+        <Label htmlFor="type" className="text-right pt-2"> Type </Label>
+        <div className="col-span-3">
+          <Input id="type" value={type} onChange={(e) => setType(e.target.value)} placeholder="e.g., Sedan, Truck" disabled={mutation.isPending} className={getFieldError(validationErrors, "type") ? "border-destructive" : ""} />
+          {getFieldError(validationErrors, "type") && ( <p className="text-sm text-destructive mt-1"> {getFieldError(validationErrors, "type")} </p> )}
+        </div>
+      </div>
+
+      {/* Color */}
+      <div className="grid grid-cols-4 items-start gap-4">
+        <Label htmlFor="color" className="text-right pt-2"> Color </Label>
+        <div className="col-span-3">
+          <Input id="color" value={color} onChange={(e) => setColor(e.target.value)} placeholder="e.g., Red, Blue" disabled={mutation.isPending} className={getFieldError(validationErrors, "color") ? "border-destructive" : ""} />
+          {getFieldError(validationErrors, "color") && ( <p className="text-sm text-destructive mt-1"> {getFieldError(validationErrors, "color")} </p> )}
+        </div>
+      </div>
+      {/* --- End Form Fields --- */}
+
+      <DialogFooter className="mt-4">
+        <DialogClose asChild>
+          <Button variant="outline" type="button" disabled={mutation.isPending}>
+            Cancel
+          </Button>
+        </DialogClose>
+        <Button type="submit" disabled={mutation.isPending}>
+          {mutation.isPending ? (
+            <> <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Creating... </>
+          ) : (
+            "Create Vehicle"
+          )}
+        </Button>
+      </DialogFooter>
+    </form>
+  );
+};
+
+================
+File: src/components/vehicles/DeleteVehicleDialog.tsx
+================
+// src/components/vehicles/DeleteVehicleDialog.tsx
+import React from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
+import { Loader2, Trash2 } from "lucide-react";
+import apiService from "@/services/apiService";
+
+interface DeleteVehicleDialogProps {
+  vehicleId: string | null;
+  vehicleCode: string | null; // For display in the confirmation
+  isOpen: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSuccess?: () => void;
+}
+
+export const DeleteVehicleDialog: React.FC<DeleteVehicleDialogProps> = ({
+  vehicleId,
+  vehicleCode,
+  isOpen,
+  onOpenChange,
+  onSuccess,
+}) => {
+  const queryClient = useQueryClient();
+
+  const mutation = useMutation<void, Error, string>({ // Expects ID, returns void on success
+    // Assume apiService.deleteVehicle(id) exists
+    mutationFn: (id) => apiService.vehicles.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["vehicles"] });
+      // Optionally invalidate specific vehicle query if needed elsewhere
+      // queryClient.invalidateQueries({ queryKey: ['vehicle', vehicleId] });
+      toast.success("Vehicle Deleted", {
+        description: `Vehicle ${vehicleCode ?? ""} deleted successfully.`,
+      });
+      onOpenChange(false); // Close dialog
+      onSuccess?.();
+    },
+    onError: (error) => {
+      apiService.handleApiError(error, (opts) =>
+        toast.error(opts),
+      );
+      // Optionally keep dialog open on error? Or close?
+      // onOpenChange(false);
+      console.error("Delete vehicle error details:", error);
+    },
+  });
+
+  const handleDelete = () => {
+    if (vehicleId) {
+      mutation.mutate(vehicleId);
+    }
+  };
+
+  // Prevent closing via overlay click if mutation is pending
+  const handleOpenChange = (open: boolean) => {
+      if (mutation.isPending) return;
+      onOpenChange(open);
+  }
+
+  return (
+    // Use AlertDialog for confirmation semantics
+    <AlertDialog open={isOpen} onOpenChange={handleOpenChange}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+          <AlertDialogDescription>
+            This action cannot be undone. This will permanently delete the
+            vehicle <span className="font-semibold">{vehicleCode ?? ""}</span>.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={mutation.isPending}>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={handleDelete}
+            disabled={mutation.isPending}
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90" // Destructive style
+          >
+            {mutation.isPending ? (
+              <> <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Deleting... </>
+            ) : (
+              <> <Trash2 className="mr-2 h-4 w-4" /> Delete </>
+            )}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+};
+
+================
+File: src/components/vehicles/EditVehicleDialog.tsx
+================
+// src/components/vehicles/EditVehicleDialog.tsx
+import React from "react";
+import { useQuery } from "@tanstack/react-query";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+} from "@/components/ui/dialog";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertCircle } from "lucide-react";
+import LoadingSpinner from "@/components/shared/LoadingSpinner";
+import apiService from "@/services/apiService";
+import { Vehicle } from "@/types/vehicle";
+import { EditVehicleForm } from ".//EditVehicleForm";
+
+interface EditVehicleDialogProps {
+    vehicleId: string | null; // ID of the vehicle to edit
+    isOpen: boolean;
+    onOpenChange: (open: boolean) => void;
+    onSuccess?: () => void;
+}
+
+export const EditVehicleDialog: React.FC<EditVehicleDialogProps> = ({
+    vehicleId,
+    isOpen,
+    onOpenChange,
+    onSuccess,
+}) => {
+    const {
+        data: vehicleData,
+        isLoading,
+        isError,
+        error,
+    } = useQuery<Vehicle, Error>({
+        queryKey: ["vehicle", vehicleId],
+        queryFn: () => apiService.vehicles.getById(vehicleId!),
+        refetchOnWindowFocus: false,
+        retry: 1,
+    });
+
+    const handleSuccess = () => {
+        onOpenChange(false);
+        onSuccess?.();
+    };
+
+    const handleClose = () => {
+        onOpenChange(false);
+    }
+
+    return (
+        <Dialog open={isOpen} onOpenChange={onOpenChange}>
+            <DialogContent className="sm:max-w-lg">
+                <DialogHeader>
+                    <DialogTitle>Edit Vehicle</DialogTitle>
+                    <DialogDescription>
+                        Update the details for this vehicle.
+                    </DialogDescription>
+                </DialogHeader>
+                {isLoading && (
+                    <div className="flex justify-center items-center h-40">
+                        <LoadingSpinner />
+                    </div>
+                )}
+                {isError && (
+                    <Alert variant="destructive">
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertTitle>Error Loading Vehicle Data</AlertTitle>
+                        <AlertDescription>
+                            Could not load data for editing. {error?.message}
+                        </AlertDescription>
+                    </Alert>
+                )}
+                {!isLoading && !isError && vehicleData && (
+                    <EditVehicleForm
+                        vehicle={vehicleData}
+                        onSuccess={handleSuccess}
+                        onCancel={handleClose}
+                    />
+                )}
+            </DialogContent>
+        </Dialog>
+    );
+};
+
+================
+File: src/components/theme-provider.tsx
+================
+import { createContext, useContext, useEffect, useState } from "react"
+
+type Theme = "dark" | "light" | "system"
+
+type ThemeProviderProps = {
+  children: React.ReactNode
+  defaultTheme?: Theme
+  storageKey?: string
+}
+
+type ThemeProviderState = {
+  theme: Theme
+  setTheme: (theme: Theme) => void
+}
+
+const initialState: ThemeProviderState = {
+  theme: "system",
+  setTheme: () => null,
+}
+
+const ThemeProviderContext = createContext<ThemeProviderState>(initialState)
+
+export function ThemeProvider({
+  children,
+  defaultTheme = "system",
+  storageKey = "vite-ui-theme",
+  ...props
+}: ThemeProviderProps) {
+  const [theme, setTheme] = useState<Theme>(
+    () => (localStorage.getItem(storageKey) as Theme) || defaultTheme
+  )
+
+  useEffect(() => {
+    const root = window.document.documentElement
+
+    root.classList.remove("light", "dark")
+
+    if (theme === "system") {
+      const systemTheme = window.matchMedia("(prefers-color-scheme: dark)")
+        .matches
+        ? "dark"
+        : "light"
+
+      root.classList.add(systemTheme)
+      return
+    }
+
+    root.classList.add(theme)
+  }, [theme])
+
+  const value = {
+    theme,
+    setTheme: (theme: Theme) => {
+      localStorage.setItem(storageKey, theme)
+      setTheme(theme)
+    },
+  }
+
+  return (
+    <ThemeProviderContext.Provider {...props} value={value}>
+      {children}
+    </ThemeProviderContext.Provider>
+  )
+}
+
+export const useTheme = () => {
+  const context = useContext(ThemeProviderContext)
+
+  if (context === undefined)
+    throw new Error("useTheme must be used within a ThemeProvider")
+
+  return context
+}
+
+================
+File: src/components/VehicleItem.tsx
+================
+// src/components/VehicleItem.tsx
+import React, { useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
+
+interface Vehicle {
+    id: number;
+    code: string;
+    vin: string;
+    manufacturer: string;
+    model: string;
+    make_year: number;
+    status: string;
+    type: string;
+}
+
+interface VehicleItemProps {
+    vehicle: Vehicle;
+    isLastChanged: boolean;
+}
+
+// Animation variants for Framer Motion
+const itemVariants = {
+    initial: { opacity: 0, y: 20 }, // Initial state (hidden below and invisible)
+    animate: { opacity: 1, y: 0 },  // Animated state (visible at correct position)
+    exit: { opacity: 0, x: -20 },   // Exit state (fades out and slides left)
+};
+
+export default function VehicleItem({
+    vehicle,
+    isLastChanged,
+}: VehicleItemProps) {
+    const [highlight, setHighlight] = useState(false);
+
+    useEffect(() => {
+        if (isLastChanged) {
+            setHighlight(true);
+            // Remove highlight after 3 seconds
+            const timer = setTimeout(() => {
+                setHighlight(false);
+            }, 3000);
+            // Clear timeout if the item is changed again or component unmounts
+            return () => clearTimeout(timer);
+        }
+        // Also clear highlight if the item is no longer the last changed
+        if (!isLastChanged && highlight) {
+            setHighlight(false);
+        }
+    }, [isLastChanged, highlight]); // Depend on isLastChanged and highlight state
+
+    // Determine dynamic classes based on highlight state
+    const itemClasses = `
+        border p-4 rounded-lg shadow-sm transition-colors duration-500
+        ${highlight ? 'bg-yellow-100 border-yellow-400' : 'bg-white border-gray-200'}
+    `;
+
+    return (
+        // Use motion.li for list item animations
+        <motion.li
+            className={itemClasses}
+            variants={itemVariants} // Apply the defined animation variants
+            initial="initial"       // Start with the 'initial' state
+            animate="animate"       // Animate to the 'animate' state when appearing
+            exit="exit"             // Animate to the 'exit' state when removed
+            layout                  // Enables layout animations for smoother transitions on list changes
+        >
+            <h3 className="text-lg font-semibold mb-1 text-gray-800">
+                {vehicle.code} - {vehicle.manufacturer} {vehicle.model} {vehicle.make_year}
+            </h3>
+            <p className="text-sm text-gray-600">
+                <span className="font-medium">VIN:</span> {vehicle.vin}
+            </p>
+            <div className="flex justify-between items-center text-sm text-gray-700 mt-2">
+                <span>
+                    <span className="font-medium">Status:</span>{' '}
+                    <span className="font-bold">{vehicle.status}</span>
+                </span>
+                <span>
+                    <span className="font-medium">Type:</span> {vehicle.type}
+                </span>
+            </div>
+        </motion.li>
+    );
+}
+
+================
+File: src/lib/authUtils.ts
+================
+import { jwtDecode } from "jwt-decode"; // Correct import
+
+const TOKEN_KEY = "authToken";
+
+interface DecodedToken {
+  exp: number;
+  // Add other expected fields from your JWT payload
+  sub: string; // Typically user ID
+  role: "user" | "admin";
+  email: string; // Assuming email is in the token
+}
+
+export interface User {
+  id: string;
+  email: string;
+  role: "user" | "admin";
+}
+
+export const AuthUtils = {
+  getToken: (): string | null => {
+    return localStorage.getItem(TOKEN_KEY);
+  },
+
+  setToken: (token: string): void => {
+    localStorage.setItem(TOKEN_KEY, token);
+  },
+
+  clearToken: (): void => {
+    localStorage.removeItem(TOKEN_KEY);
+  },
+
+  decodeToken: (token: string): { user: User; expires: number } | null => {
+    try {
+      const decoded = jwtDecode<DecodedToken>(token);
+      // Optional: Check if token is expired client-side (backend check is primary)
+      if (decoded.exp * 1000 < Date.now()) {
+        console.warn("Token expired (client-side check)");
+        AuthUtils.clearToken();
+        return null;
+      }
+      const user: User = {
+        id: decoded.sub,
+        email: decoded.email, // Adjust field name if different in your token
+        role: decoded.role,
+      };
+      return { user, expires: decoded.exp * 1000 };
+    } catch (error) {
+      console.error("Failed to decode token:", error);
+      AuthUtils.clearToken(); // Clear invalid token
+      return null;
+    }
+  },
+
+  getUserFromToken: (): User | null => {
+    const token = AuthUtils.getToken();
+    if (!token) return null;
+    const decoded = AuthUtils.decodeToken(token);
+    return decoded ? decoded.user : null;
+  },
+
+  isAuthenticated: (): boolean => {
+    const token = AuthUtils.getToken();
+    if (!token) return false;
+    // Optional: Basic check if token exists and is decodable (doesn't guarantee validity)
+    try {
+      const decoded = jwtDecode<DecodedToken>(token);
+      return decoded.exp * 1000 >= Date.now(); // Check expiry
+    } catch {
+      return false;
+    }
+  },
+};
+
+================
+File: src/lib/utils.ts
+================
+import { clsx, type ClassValue } from "clsx"
+import { twMerge } from "tailwind-merge"
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs))
+}
+
+================
+File: src/types/api.ts
+================
+// src/types/api.ts
+
+/**
+ * Generic structure for dropdown/select options.
+ */
+export interface SelectOption {
+    value: string;
+    label: string;
+  }
+  
+  /**
+   * Structure for structured validation errors from the API.
+   * Example: { "field_name": ["error message 1", "error message 2"] }
+   */
+  export interface ApiValidationError {
+    [field: string]: string[];
+  }
+  
+  /**
+   * Structure for a generic error response from the API.
+   */
+  export interface ApiErrorResponse {
+    message?: string;
+    errors?: ApiValidationError;
+    // Add other potential error fields your API might return
+  }
+
+================
+File: src/types/apiAuthToken.ts
+================
+// src/types/apiAuthToken.ts
+
+export interface ApiAuthToken {
+    id: string;
+    title: string;
+    description: string | null;
+    token_prefix: string; // Example: Display prefix only
+    last_accessed_at: string | null; // ISO 8601 string
+    created_at: string; // ISO 8601 string
+    iot_devices_count: number;
+  }
+  
+  export interface CreateApiAuthTokenPayload {
+    title: string;
+    description?: string;
+  }
+  
+  // Add UpdateApiAuthTokenPayload if needed
+  // export interface UpdateApiAuthTokenPayload extends Partial<Omit<ApiAuthToken, 'id' | 'token_prefix' | 'created_at' | 'iot_devices_count'>> {
+  //   // Define specific updatable fields
+  // }
+
+================
+File: src/types/auth.ts
+================
+// src/types/auth.ts
+
+export interface LoginPayload {
+    email: string;
+    password?: string; // Optional if using other auth methods
+  }
+  
+  export interface LoginResponse {
+    token: string;
+    user: {
+      id: string;
+      email: string;
+      role: "user" | "admin"; // Use union type for known roles
+    };
+  }
+  
+  export interface RegisterPayload {
+    email: string;
+    password?: string;
+  }
+  
+  // No specific RegisterResponse defined, assuming API returns 2xx with no body or a simple message
+
+================
+File: src/types/iotDevice.ts
+================
+// src/types/iotDevice.ts
+
+// Forward declaration for nested types to avoid circular dependencies if needed later
+// interface VehicleSummary { id: string; code: string; plate: string; }
+// interface ApiAuthTokenSummary { id: string; title: string; }
+
+export interface IotDevice {
+    id: string;
+    mac_address: string;
+    model: string | null;
+    hw_version: string | null;
+    sw_version: string | null;
+    status: string; // Consider 'Online' | 'Offline' | 'Provisioning' etc.
+    // Define nested structures based on what your API actually returns
+    vehicle: { id: string; code: string; plate: string } | null;
+    api_auth_token: { id: string; title: string } | null;
+    // created_at?: string; // ISO 8601 string
+    // updated_at?: string; // ISO 8601 string
+  }
+  
+  export interface CreateIotDevicePayload {
+    mac_address: string;
+    vehicle_id?: string | null; // Use null if API expects it for unlinking
+    api_auth_token_id?: string | null;
+    model?: string;
+    hw_version?: string;
+    sw_version?: string;
+    status?: string;
+  }
+  
+  export interface UpdateIotDevicePayload extends Partial<Omit<IotDevice, 'id' | 'vehicle' | 'api_auth_token'>> {
+    vehicle_id?: string | null; // Allow updating links
+    api_auth_token_id?: string | null;
+    // Define other specific updatable fields
+  }
+
+================
+File: src/types/vehicle.ts
+================
+// src/types/vehicle.ts
+
+/**
+ * Represents the structure of a Vehicle object as returned by the API.
+ */
+export interface Vehicle {
+    id: string;
+    code: string;
+    plate: string;
+    vin: string | null;
+    manufacturer: string | null;
+    model: string | null;
+    year: number | null;
+    status: string; // Consider using a union type if statuses are fixed: 'Active' | 'Maintenance' | 'Inactive'
+    type: string | null;
+    color: string | null;
+    iot_devices_count: number;
+    latest_telemetry: {
+      lat: string | null;
+      long: string | null;
+      timestamp: string | null; // ISO 8601 string format is common
+    } | null;
+    // Add other fields returned by your API if necessary
+    // created_at?: string;
+    // updated_at?: string;
+  }
+  
+  /**
+   * Represents the payload required to create a new Vehicle via the API.
+   * Adjust required/optional fields based on your API endpoint requirements.
+   */
+  export interface CreateVehiclePayload {
+    code: string; // Typically required
+    plate: string; // Typically required
+    vin: string; // Marked as required in the form logic
+    manufacturer?: string;
+    model?: string;
+    year?: number;
+    status?: string;
+    type?: string;
+    color?: string;
+    // Fields like iot_devices_count and latest_telemetry are usually set by the backend,
+    // but included here if your API allows setting them on creation (uncommon).
+    // iot_devices_count?: number;
+    // latest_telemetry?: {
+    //   lat: number | null;
+    //   long: number | null;
+    //   timestamp: string | null;
+    // } | null;
+  }
+  
+  /**
+   * Represents the payload allowed when updating an existing Vehicle via the API.
+   * Often a partial version of the Vehicle type, excluding read-only fields like 'id'.
+   */
+  export interface UpdateVehiclePayload extends Partial<Omit<Vehicle, 'id' | 'iot_devices_count' | 'latest_telemetry'>> {
+    // Ensure required fields for update (if any) are not optional here,
+    // or handle validation appropriately in the form/API.
+    // For example, if 'code' cannot be changed after creation, omit it:
+    // extends Partial<Omit<Vehicle, 'id' | 'code' | 'iot_devices_count' | 'latest_telemetry'>>
+  
+    // Explicitly define fields if they differ significantly from Vehicle type
+    code?: string;
+    plate?: string;
+    vin?: string;
+    manufacturer?: string;
+    model?: string;
+    year?: number;
+    status?: string;
+    type?: string;
+    color?: string;
+  }
+  
+  
+  /**
+   * Represents the structure of validation errors returned from the API,
+   * typically mapping field names to an array of error messages.
+   * Example: { "code": ["Code already exists."], "plate": ["Plate format is invalid."] }
+   */
+  export interface ApiValidationError {
+    [field: string]: string[];
+  }
+  
+  /**
+   * Represents the structure of a successful API response containing a single vehicle.
+   * Adjust based on your actual API response structure.
+   */
+  export interface SingleVehicleApiResponse {
+      data: Vehicle;
+      message?: string; // Optional success message
+      // Add other potential top-level response fields
+  }
+  
+  /**
+   * Represents the structure of a successful API response containing a list of vehicles.
+   * Adjust based on your actual API response structure (e.g., pagination info).
+   */
+  export interface VehicleListApiResponse {
+      data: Vehicle[];
+      message?: string; // Optional success message
+      meta?: { // Example pagination metadata
+          currentPage: number;
+          totalPages: number;
+          perPage: number;
+          totalItems: number;
+      };
+      // Add other potential top-level response fields
+  }
+
+================
+File: src/main.tsx
+================
+import { StrictMode } from 'react'
+import { createRoot } from 'react-dom/client'
+import './index.css'
+import App from './App.tsx'
+
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <App />
+  </StrictMode>,
+)
+
+================
+File: eslint.config.js
+================
+import js from '@eslint/js'
+import globals from 'globals'
+import reactHooks from 'eslint-plugin-react-hooks'
+import reactRefresh from 'eslint-plugin-react-refresh'
+import tseslint from 'typescript-eslint'
+
+export default tseslint.config(
+  { ignores: ['dist'] },
+  {
+    extends: [js.configs.recommended, ...tseslint.configs.recommended],
+    files: ['**/*.{ts,tsx}'],
+    languageOptions: {
+      ecmaVersion: 2020,
+      globals: globals.browser,
+    },
+    plugins: {
+      'react-hooks': reactHooks,
+      'react-refresh': reactRefresh,
+    },
+    rules: {
+      ...reactHooks.configs.recommended.rules,
+      'react-refresh/only-export-components': [
+        'warn',
+        { allowConstantExport: true },
+      ],
+    },
+  },
+)
+
+================
+File: index.html
+================
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Vite + React + TS</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+
+================
+File: src/components/vehicles/EditVehicleForm.tsx
+================
+// src/components/vehicles/EditVehicleForm.tsx
+import React, { useState, useEffect } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
+import { DialogFooter } from "@/components/ui/dialog";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { toast } from "sonner"; // Assuming sonner's toast
+import { Loader2, AlertCircle } from "lucide-react";
+import apiService from "@/services/apiService";
+import {
+  Vehicle,
+  UpdateVehiclePayload, // Import the type from the central file
+  ApiValidationError,
+} from "@/types/vehicle"; // Make sure ApiValidationError is also exported from vehicle types or api types
+
+// --- Helper to get error message --- (Can be shared, move to utils?)
+const getFieldError = (
+  errors: ApiValidationError | null,
+  field: keyof ApiValidationError
+): string | null => {
+  // Ensure errors object exists and the field key exists before accessing
+  return errors?.[field]?.[0] ?? null;
+};
+
+// --- Remove the inline UpdateVehiclePayload definition ---
+
+export const EditVehicleForm = ({
+  vehicle,
+  onSuccess,
+  onCancel,
+}: any) => {
+  const queryClient = useQueryClient();
+
+  console.log("EditVehicleForm vehicle:", vehicle);
+  // Initialize state with existing vehicle data
+  const [code, setCode] = useState(vehicle.code);
+  const [plate, setPlate] = useState(vehicle.plate);
+  // Keep state as string, handle null/undefined during payload creation
+  const [vin, setVin] = useState(vehicle.vin ?? "");
+  const [manufacturer, setManufacturer] = useState(vehicle.manufacturer ?? "");
+  const [model, setModel] = useState(vehicle.model ?? "");
+  const [year, setYear] = useState<number | "">(vehicle.year ?? "");
+  const [status, setStatus] = useState(vehicle.status ?? "");
+  const [type, setType] = useState(vehicle.type ?? "");
+  const [color, setColor] = useState(vehicle.color ?? "");
+
+  const [validationErrors, setValidationErrors] =
+    useState<ApiValidationError | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setCode(vehicle?.data?.code);
+    setPlate(vehicle?.data?.plate);
+    setVin(vehicle?.data?.vin ?? "");
+    setManufacturer(vehicle?.data?.manufacturer ?? "");
+    setModel(vehicle?.data?.model ?? "");
+    setYear(vehicle?.data?.make_year ?? "");
+    setStatus(vehicle?.data?.status ?? "");
+    setType(vehicle?.data?.type ?? "");
+    setColor(vehicle?.data?.color ?? "");
+    setValidationErrors(null);
+    setSubmitError(null);
+  }, [vehicle]);
+
+  const mutation = useMutation<Vehicle, Error, UpdateVehiclePayload>({
+    // --- Corrected mutationFn ---
+    // The apiService function already returns Promise<Vehicle>
+    mutationFn: (payload) => apiService.vehicles.update(vehicle.data.id, payload),
+    // --- End Correction ---
+    onSuccess: (data) => {
+      // Invalidate queries to refetch data
+      // Using queryKey array directly is often preferred
+      queryClient.invalidateQueries({ queryKey: ["vehicles"] });
+      queryClient.invalidateQueries({ queryKey: ["vehicle", vehicle.data.id] });
+
+      toast.success("Vehicle Updated", {
+        description: `Vehicle ${data.code} (${data.plate}) updated successfully.`,
+      });
+      setValidationErrors(null);
+      setSubmitError(null);
+      onSuccess(); // Call success callback (e.g., close dialog)
+    },
+    onError: (error) => {
+      // Pass sonner's toast.error directly if its signature matches
+      // Or use the refined signature from apiService.handleApiError
+      const errors = apiService.handleApiError(error, (title, options) =>
+        toast.error(title, options)
+      );
+
+      if (errors) {
+        // errors is ApiValidationError | null
+        setValidationErrors(errors);
+        setSubmitError(null); // Clear generic error if validation errors exist
+      } else {
+        // If handleApiError returned null (e.g., for 401 or non-validation error)
+        // A toast was likely already shown by handleApiError
+        setSubmitError("An unexpected error occurred during update."); // Keep a generic error state if needed
+        setValidationErrors(null);
+      }
+      console.error("Update vehicle error details:", error);
+    },
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setValidationErrors(null);
+    setSubmitError(null);
+
+    if (!code || !plate || !vin) {
+      setSubmitError("Code, Plate, and VIN cannot be empty.");
+      // Optionally set specific validation errors
+      // setValidationErrors({
+      //   code: !code ? ["Code is required"] : [],
+      //   plate: !plate ? ["Plate is required"] : [],
+      //   vin: !vin ? ["VIN is required"] : [],
+      // });
+      return;
+    }
+
+    // Construct the payload using the imported UpdateVehiclePayload type implicitly
+    // Ensure values match the expected type (string | null | undefined for optional fields)
+    const payload = {
+      code,
+      plate,
+      // Send null if the field is empty and the API expects null for clearing optional string fields
+      // Otherwise, send undefined to omit the field if the API ignores missing fields
+      vin: vin || undefined,
+      manufacturer: manufacturer || undefined,
+      model: model || undefined,
+      make_year: year === "" ? undefined : year, // Keep sending undefined for empty number
+      status: status || undefined,
+      type: type || undefined,
+      color: color || undefined,
+    };
+
+    mutation.mutate(payload);
+  };
+
+  return (
+    // --- Form JSX (remains largely the same) ---
+    <form onSubmit={handleSubmit} className="grid gap-4 py-4">
+      {submitError && !validationErrors && ( // Show generic error only if no specific validation errors
+        <Alert variant="destructive" className="mb-4 col-span-4">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>{submitError}</AlertDescription>
+        </Alert>
+      )}
+
+      {/* Code */}
+      <div className="grid grid-cols-4 items-start gap-4">
+        <Label htmlFor="edit-code" className="text-right pt-2"> Code* </Label>
+        <div className="col-span-3">
+          <Input id="edit-code" value={code} onChange={(e) => setCode(e.target.value)} disabled={mutation.isPending} required aria-required="true" className={getFieldError(validationErrors, "code") ? "border-destructive" : ""} />
+          {getFieldError(validationErrors, "code") && (<p className="text-sm text-destructive mt-1"> {getFieldError(validationErrors, "code")} </p>)}
+        </div>
+      </div>
+
+      {/* Plate */}
+      <div className="grid grid-cols-4 items-start gap-4">
+        <Label htmlFor="edit-plate" className="text-right pt-2"> Plate* </Label>
+        <div className="col-span-3">
+          <Input id="edit-plate" value={plate} onChange={(e) => setPlate(e.target.value)} disabled={mutation.isPending} required aria-required="true" className={getFieldError(validationErrors, "plate") ? "border-destructive" : ""} />
+          {getFieldError(validationErrors, "plate") && (<p className="text-sm text-destructive mt-1"> {getFieldError(validationErrors, "plate")} </p>)}
+        </div>
+      </div>
+
+      {/* VIN */}
+      <div className="grid grid-cols-4 items-start gap-4">
+        <Label htmlFor="edit-vin" className="text-right pt-2"> VIN* </Label>
+        <div className="col-span-3">
+          <Input id="edit-vin" value={vin} onChange={(e) => setVin(e.target.value)} disabled={mutation.isPending} required aria-required="true" className={getFieldError(validationErrors, "vin") ? "border-destructive" : ""} />
+          {getFieldError(validationErrors, "vin") && (<p className="text-sm text-destructive mt-1"> {getFieldError(validationErrors, "vin")} </p>)}
+        </div>
+      </div>
+
+      {/* Manufacturer */}
+      <div className="grid grid-cols-4 items-start gap-4">
+        <Label htmlFor="edit-manufacturer" className="text-right pt-2"> Manufacturer </Label>
+        <div className="col-span-3">
+          <Input id="edit-manufacturer" value={manufacturer} onChange={(e) => setManufacturer(e.target.value)} disabled={mutation.isPending} className={getFieldError(validationErrors, "manufacturer") ? "border-destructive" : ""} />
+          {getFieldError(validationErrors, "manufacturer") && (<p className="text-sm text-destructive mt-1"> {getFieldError(validationErrors, "manufacturer")} </p>)}
+        </div>
+      </div>
+
+      {/* Model */}
+      <div className="grid grid-cols-4 items-start gap-4">
+        <Label htmlFor="edit-model" className="text-right pt-2"> Model </Label>
+        <div className="col-span-3">
+          <Input id="edit-model" value={model} onChange={(e) => setModel(e.target.value)} disabled={mutation.isPending} className={getFieldError(validationErrors, "model") ? "border-destructive" : ""} />
+          {getFieldError(validationErrors, "model") && (<p className="text-sm text-destructive mt-1"> {getFieldError(validationErrors, "model")} </p>)}
+        </div>
+      </div>
+
+      {/* Year */}
+      <div className="grid grid-cols-4 items-start gap-4">
+        <Label htmlFor="edit-year" className="text-right pt-2"> Year </Label>
+        <div className="col-span-3">
+          <Input id="edit-year" type="number" value={year} onChange={(e) => setYear(e.target.value === "" ? "" : parseInt(e.target.value, 10))} placeholder="e.g., 2023" min="1900" max={new Date().getFullYear() + 1} disabled={mutation.isPending} className={getFieldError(validationErrors, "make_year") ? "border-destructive" : ""} />
+          {getFieldError(validationErrors, "make_year") && (<p className="text-sm text-destructive mt-1"> {getFieldError(validationErrors, "make_year")} </p>)}
+        </div>
+      </div>
+
+      {/* Status */}
+      <div className="grid grid-cols-4 items-start gap-4">
+        <Label htmlFor="edit-status" className="text-right pt-2"> Status </Label>
+        <div className="col-span-3">
+          <Input id="edit-status" value={status} onChange={(e) => setStatus(e.target.value)} placeholder="e.g., Active, Maintenance" disabled={mutation.isPending} className={getFieldError(validationErrors, "status") ? "border-destructive" : ""} />
+          {getFieldError(validationErrors, "status") && (<p className="text-sm text-destructive mt-1"> {getFieldError(validationErrors, "status")} </p>)}
+        </div>
+      </div>
+
+      {/* Type */}
+      <div className="grid grid-cols-4 items-start gap-4">
+        <Label htmlFor="edit-type" className="text-right pt-2"> Type </Label>
+        <div className="col-span-3">
+          <Input id="edit-type" value={type} onChange={(e) => setType(e.target.value)} placeholder="e.g., Sedan, Truck" disabled={mutation.isPending} className={getFieldError(validationErrors, "type") ? "border-destructive" : ""} />
+          {getFieldError(validationErrors, "type") && (<p className="text-sm text-destructive mt-1"> {getFieldError(validationErrors, "type")} </p>)}
+        </div>
+      </div>
+
+      {/* Color */}
+      <div className="grid grid-cols-4 items-start gap-4">
+        <Label htmlFor="edit-color" className="text-right pt-2"> Color </Label>
+        <div className="col-span-3">
+          <Input id="edit-color" value={color} onChange={(e) => setColor(e.target.value)} placeholder="e.g., Red, Blue" disabled={mutation.isPending} className={getFieldError(validationErrors, "color") ? "border-destructive" : ""} />
+          {getFieldError(validationErrors, "color") && (<p className="text-sm text-destructive mt-1"> {getFieldError(validationErrors, "color")} </p>)}
+        </div>
+      </div>
+      {/* --- End Form Fields --- */}
+
+      <DialogFooter className="mt-4">
+        <Button
+          variant="outline"
+          type="button"
+          onClick={onCancel}
+          disabled={mutation.isPending}
+        >
+          Cancel
+        </Button>
+        <Button type="submit" disabled={mutation.isPending}>
+          {mutation.isPending ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...
+            </>
+          ) : (
+            "Save Changes"
+          )}
+        </Button>
+      </DialogFooter>
+    </form>
+  );
+};
+
+================
+File: src/components/vehicles/VehicleList.tsx
+================
+// src/components/vehicles/VehicleList.tsx
+import React from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  TableCaption,
+} from "@/components/ui/table";
+import { Eye, Pencil, Trash2 } from "lucide-react";
+import { Vehicle } from "@/types/vehicle";
+
+interface VehicleListProps {
+  vehicles: Vehicle[];
+  isLoading: boolean; // Pass loading state for placeholder
+  onView: (vehicleId: string) => void;
+  onEdit: (vehicleId: string) => void;
+  onDelete: (vehicleId: string, vehicleCode: string) => void; // Pass code for confirmation
+}
+
+export const VehicleList= ({
+  vehicles,
+  isLoading,
+  onView,
+  onEdit,
+  onDelete,
+}:any) => {
+  const vehicleList = vehicles.data || [];
+  return (
+    <div className="rounded-md border">
+      <div className="relative w-full overflow-auto">
+        <Table>
+          <TableCaption
+            className={
+              vehicleList.length > 0 || isLoading ? "sr-only" : "mt-4 mb-4"
+            }
+          >
+            {isLoading
+              ? "Loading vehicles..."
+              : vehicleList.length === 0
+                ? "No vehicles found."
+                : "A list of your registered vehicles."}
+          </TableCaption>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Code</TableHead>
+              <TableHead>Plate</TableHead>
+              <TableHead>VIN</TableHead>
+              <TableHead>Model</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="text-center">IoT Devices</TableHead>
+              <TableHead className="text-right w-[120px]">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isLoading ? (
+              <TableRow>
+                <TableCell colSpan={8} className="h-24 text-center">
+                  Loading...
+                </TableCell>
+              </TableRow>
+            ) : vehicleList.length > 0 ? (
+              vehicleList.map((vehicle:any) => (
+                <TableRow key={vehicle.id} className="hover:bg-muted/50">
+                  <TableCell className="font-medium">{vehicle.code}</TableCell>
+                  <TableCell>{vehicle.plate}</TableCell>
+                  <TableCell>{vehicle.vin ?? "N/A"}</TableCell>
+                  <TableCell>
+                    {`${vehicle.manufacturer ?? ""} ${vehicle.model ?? ""} ${
+                      vehicle.year ? `(${vehicle.year})` : ""
+                    }`.trim() || "N/A"}
+                  </TableCell>
+                  <TableCell>{vehicle.status ?? "N/A"}</TableCell>
+                  <TableCell className="text-center">
+                    {vehicle.iot_devices_count ?? 0}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex justify-end gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => onView(vehicle.id)}
+                        aria-label={`View details for vehicle ${vehicle.code}`}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => onEdit(vehicle.id)}
+                        aria-label={`Edit vehicle ${vehicle.code}`}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-destructive hover:text-destructive/90"
+                        onClick={() => onDelete(vehicle.id, vehicle.code)}
+                        aria-label={`Delete vehicle ${vehicle.code}`}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={8} className="h-24 text-center">
+                  No vehicles available.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
+  );
+};
+
+================
+File: src/components/vehicles/VehicleMap.tsx
+================
+// src/components/vehicles/VehicleMap.tsx
+import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import { LatLngExpression, LatLngBounds, Map } from 'leaflet';
+import { Vehicle } from '@/types/vehicle';
+import { Button } from '@/components/ui/button';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import L from 'leaflet';
+import iconUrl from 'leaflet/dist/images/marker-icon.png';
+import iconRetinaUrl from 'leaflet/dist/images/marker-icon-2x.png';
+import shadowUrl from 'leaflet/dist/images/marker-shadow.png';
+
+const defaultIcon = L.icon({
+    iconUrl,
+    iconRetinaUrl,
+    shadowUrl,
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+    shadowSize: [41, 41]
+});
+// --- End Optional Icon ---
+
+// --- Included formatDateTime function ---
+const formatDateTime = (timestamp: string | null | undefined): string => {
+    if (!timestamp) return "N/A";
+    try {
+        // Basic check for ISO-like format before parsing
+        if (typeof timestamp === 'string' && timestamp.match(/^\d{4}-\d{2}-\d{2}/)) {
+            return new Date(timestamp).toLocaleString();
+        }
+        // If not a recognizable format, return as is or indicate issue
+        return "Invalid Date Format";
+    } catch (e) {
+        console.error("Error formatting date:", timestamp, e);
+        return "Invalid Date";
+    }
+};
+// --- End formatDateTime function ---
+
+
+interface VehicleMapProps {
+  vehicles: Vehicle[];
+}
+
+// Helper to check if a string can be parsed into a valid latitude/longitude number
+const isValidCoordinateString = (coordStr: string | null | undefined): coordStr is string => {
+    if (typeof coordStr !== 'string' || coordStr.trim() === '') return false;
+    const num = parseFloat(coordStr);
+    return !isNaN(num) && isFinite(num);
+};
+
+// Helper type for vehicles confirmed to have valid, parsable coordinates
+type VehicleWithValidCoords = Vehicle & {
+    latest_telemetry: { lat: string; long: string; timestamp: string | null }
+};
+
+// Map Controller Component (handles map instance interactions)
+interface MapControllerProps {
+    vehicles: VehicleWithValidCoords[];
+    currentIndex: number | null;
+    initialBounds: LatLngBounds | null;
+}
+
+const MapController = ({ vehicles, currentIndex, initialBounds }:any) => {
+    const map = useMap();
+    const isInitialLoad = useRef(true);
+    useLayoutEffect(() => {
+        if (isInitialLoad.current && initialBounds && initialBounds.isValid()) {
+            map.fitBounds(initialBounds, { padding: [50, 50], maxZoom: 16 });
+            isInitialLoad.current = false;
+        }
+    }, [map, initialBounds]);
+
+    useLayoutEffect(() => {
+        if (!isInitialLoad.current && currentIndex !== null && vehicles.data[currentIndex]) {
+            const vehicle = vehicles.data[currentIndex];
+            const lat = parseFloat(vehicle.latest_telemetry.lat);
+            const long = parseFloat(vehicle.latest_telemetry.long);
+            if (!isNaN(lat) && !isNaN(long)) {
+                map.flyTo([lat, long], 15, { animate: true, duration: 1 });
+            }
+        }
+    }, [currentIndex, vehicles, map]);
+
+    return null;
+};
+
+
+// Main VehicleMap Component
+export const VehicleMap = ({ vehicles }: any) => {
+  console.log("VehicleMap vehicles:", vehicles);
+  const vehiclesWithLocation = vehicles.data.filter(
+    (v:any): v is VehicleWithValidCoords =>
+      v.latest_telemetry != null &&
+      isValidCoordinateString(v.latest_telemetry.lat) &&
+      isValidCoordinateString(v.latest_telemetry.long)
+  );
+  const [currentVehicleIndex, setCurrentVehicleIndex] = useState<number | null>(
+    vehiclesWithLocation.length > 0 ? 0 : null
+  );
+
+  const defaultCenter: LatLngExpression = [51.505, -0.09];
+  const defaultZoom = 5;
+
+  let initialBounds: LatLngBounds | null = null;
+  if (vehiclesWithLocation.length > 0) {
+    const latLngs: LatLngExpression[] = [];
+    vehiclesWithLocation.forEach((v:any) => {
+        const lat = parseFloat(v.latest_telemetry.lat);
+        const long = parseFloat(v.latest_telemetry.long);
+        if (!isNaN(lat) && !isNaN(long)) latLngs.push([lat, long]);
+    });
+    if (latLngs.length > 0) {
+        try { initialBounds = new LatLngBounds(latLngs); }
+        catch (e) { console.error("Error creating LatLngBounds:", e, latLngs); }
+    }
+  }
+
+  const handleNext = () => {
+    if (vehiclesWithLocation.length === 0) return;
+    setCurrentVehicleIndex(prevIndex => {
+        const next = (prevIndex ?? -1) + 1;
+        return next >= vehiclesWithLocation.length ? 0 : next;
+    });
+  };
+
+  const handlePrevious = () => {
+    if (vehiclesWithLocation.length === 0) return;
+    setCurrentVehicleIndex(prevIndex => {
+        const prev = (prevIndex ?? 0) - 1;
+        return prev < 0 ? vehiclesWithLocation.length - 1 : prev;
+    });
+  };
+
+  const currentVehicle = currentVehicleIndex !== null ? vehiclesWithLocation[currentVehicleIndex] : null;
+
+  if (vehiclesWithLocation.length === 0) {
+    return (
+      <div className="rounded-md border p-4 text-center text-muted-foreground h-[600px] flex items-center justify-center">
+        No vehicles with valid location data available to display on the map.
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-md border overflow-hidden relative">
+       <div className="absolute top-2 left-1/2 transform -translate-x-1/2 z-[1000] bg-background/80 p-2 rounded-md shadow-md flex items-center gap-2">
+           <Button
+               variant="outline"
+               size="icon"
+               onClick={handlePrevious}
+               disabled={vehiclesWithLocation.length <= 1}
+               aria-label="Previous vehicle"
+           >
+               <ChevronLeft className="h-5 w-5" />
+           </Button>
+           <div className="text-sm font-medium text-center min-w-[150px] px-2">
+               {currentVehicle ? (
+                   `${currentVehicle.code} (${currentVehicleIndex! + 1}/${vehiclesWithLocation.length})`
+               ) : (
+                   `No Vehicle Selected`
+               )}
+           </div>
+           <Button
+               variant="outline"
+               size="icon"
+               onClick={handleNext}
+               disabled={vehiclesWithLocation.length <= 1}
+               aria-label="Next vehicle"
+           >
+               <ChevronRight className="h-5 w-5" />
+           </Button>
+       </div>
+
+      <MapContainer
+        center={defaultCenter}
+        zoom={defaultZoom}
+        scrollWheelZoom={true}
+        style={{ height: '600px', width: '100%' }}
+      >
+        <TileLayer
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
+        {vehiclesWithLocation.map((vehicle:any, index:any) => {
+          const lat = parseFloat(vehicle.latest_telemetry.lat);
+          const long = parseFloat(vehicle.latest_telemetry.long);        
+          if (isNaN(lat) || isNaN(long)) return null;
+          return (
+            <Marker
+              key={vehicle.id}
+              position={[lat, long]}
+              icon={defaultIcon}
+              eventHandlers={{ click: () => setCurrentVehicleIndex(index) }}
+            >
+              <Popup>
+                <div className="text-sm">
+                  <p className="font-semibold">{vehicle.code} ({vehicle.plate})</p>
+                  <p>Status: {vehicle.status ?? 'N/A'}</p>
+                  <p>Model: {`${vehicle.manufacturer ?? ''} ${vehicle.model ?? ''}`.trim() || 'N/A'}</p>
+                  {/* Uses the locally defined formatDateTime */}
+                  <p>Last Update: {formatDateTime(vehicle.latest_telemetry.timestamp)}</p>
+                  <p>Coords: {lat.toFixed(5)}, {long.toFixed(5)}</p>
+                </div>
+              </Popup>
+            </Marker>
+          );
+        })}
+        <MapController
+            vehicles={vehiclesWithLocation}
+            currentIndex={currentVehicleIndex}
+            initialBounds={initialBounds}
+        />
+      </MapContainer>
+    </div>
+  );
+};
+
+================
+File: src/components/vehicles/ViewVehicleDialog.tsx
+================
+// src/components/vehicles/ViewVehicleDialog.tsx
+import React from "react";
+import { useQuery } from "@tanstack/react-query";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+    DialogFooter,
+    DialogClose,
+} from "@/components/ui/dialog";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { AlertCircle } from "lucide-react";
+import LoadingSpinner from "@/components/shared/LoadingSpinner";
+import apiService from "@/services/apiService";
+import { Vehicle } from "@/types/vehicle";
+
+interface ViewVehicleDialogProps {
+    vehicleId: string | null;
+    isOpen: boolean;
+    onOpenChange: (open: boolean) => void;
+}
+
+// Helper component to display details
+const DetailItem = ({ label, value }: { label: string; value: React.ReactNode }) => (
+    <div className="grid grid-cols-3 gap-2 py-1">
+        <dt className="font-medium text-muted-foreground">{label}</dt>
+        <dd className="col-span-2">{value ?? <span className="text-muted-foreground italic">N/A</span>}</dd>
+    </div>
+);
+
+
+export const ViewVehicleDialog = ({
+    vehicleId,
+    isOpen,
+    onOpenChange,
+}:any) => {
+    const {
+        data: vehicle,
+        isLoading,
+        isError,
+        error,
+    } = useQuery({
+        queryKey: ["vehicle", vehicleId],
+        queryFn: () =>
+            apiService.vehicles.getById(vehicleId!).then((res: any) => res.data),
+        enabled: !!vehicleId && isOpen,
+        refetchOnWindowFocus: false,
+        retry: 1,
+    });
+
+    const formatDateTime = (timestamp: string | null | undefined): string => {
+        if (!timestamp) return "N/A";
+        try {
+            // Basic check for ISO-like format before parsing
+            if (typeof timestamp === 'string' && timestamp.match(/^\d{4}-\d{2}-\d{2}/)) {
+                return new Date(timestamp).toLocaleString();
+            }
+            // If not a recognizable format, return as is or indicate issue
+            return "Invalid Date Format";
+        } catch (e) {
+            console.error("Error formatting date:", timestamp, e);
+            return "Invalid Date";
+        }
+    };
+
+    return (
+        <Dialog open={isOpen} onOpenChange={onOpenChange}>
+            <DialogContent className="sm:max-w-lg">
+                <DialogHeader>
+                    <DialogTitle>Vehicle Details</DialogTitle>
+                    <DialogDescription>
+                        Viewing details for vehicle {vehicle?.code ?? '...'}.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="py-4">
+                    {isLoading && (
+                        <div className="flex justify-center items-center h-40">
+                            <LoadingSpinner />
+                        </div>
+                    )}
+                    {isError && (
+                        <Alert variant="destructive">
+                            <AlertCircle className="h-4 w-4" />
+                            <AlertTitle>Error Loading Vehicle Data</AlertTitle>
+                            <AlertDescription>
+                                Could not load vehicle details. {error?.message}
+                            </AlertDescription>
+                        </Alert>
+                    )}
+                    {!isLoading && !isError && vehicle && (
+                        <dl className="space-y-2">
+                            <DetailItem label="ID" value={vehicle.id} />
+                            <DetailItem label="Code" value={vehicle.code} />
+                            <DetailItem label="Plate" value={vehicle.plate} />
+                            <DetailItem label="VIN" value={vehicle.vin} />
+                            <DetailItem label="Manufacturer" value={vehicle.manufacturer} />
+                            <DetailItem label="Model" value={vehicle.model} />
+                            <DetailItem label="Year" value={vehicle.make_year} />
+                            <DetailItem label="Status" value={vehicle.status} />
+                            <DetailItem label="Type" value={vehicle.type} />
+                            <DetailItem label="Color" value={vehicle.color} />
+                            <DetailItem label="IoT Devices" value={vehicle.iot_devices_count} />
+                            <DetailItem label="Last Latitude" value={vehicle.latest_telemetry?.lat} />
+                            <DetailItem label="Last Longitude" value={vehicle.latest_telemetry?.long} />
+                            <DetailItem label="Last Telemetry" value={formatDateTime(vehicle.latest_telemetry?.timestamp)} />
+                        </dl>
+                    )}
+                </div>
+                <DialogFooter>
+                    <DialogClose asChild>
+                        <Button variant="outline">Close</Button>
+                    </DialogClose>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+};
+
+================
+File: src/pages/DashboardPage.tsx
+================
+import { useAuthStore } from "@/stores/authStore";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Link } from "react-router-dom";
+import { Car, Router, KeyRound, UserCog } from "lucide-react";
+
+interface DashboardAction {
+  title: string;
+  description: string;
+  link: string;
+  icon: React.ElementType;
+  adminOnly?: boolean;
+}
+
+export default function DashboardPage() {
+  const user = useAuthStore((state) => state.user);
+  const isAdmin = user?.role === "admin";
+
+  const actions: DashboardAction[] = [
+    {
+      title: "Manage Vehicles",
+      description: "View, add, or edit vehicle information.",
+      link: "/vehicles",
+      icon: Car,
+    },
+    {
+      title: "Manage IoT Devices",
+      description: "Configure and monitor your IoT devices.",
+      link: "/iot",
+      icon: Router,
+    },
+    {
+      title: "Manage API Tokens",
+      description: "Generate and manage access tokens for APIs.",
+      link: "/api-auth",
+      icon: KeyRound,
+    },
+  ];
+
+  // Filter actions based on user role (show all if admin, otherwise filter out adminOnly)
+  const availableActions = actions.filter(
+    (action) => !action.adminOnly || isAdmin,
+  );
+
+  return (
+    <div className="container mx-auto py-10 px-4 sm:px-6 lg:px-8">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold tracking-tight mb-2">Dashboard</h1>
+        <p className="text-lg text-muted-foreground">
+          Welcome back, {user?.email || "User"}! Access your resources below.
+        </p>
+        {isAdmin && (
+          <p className="mt-1 text-sm font-medium text-primary flex items-center">
+            <UserCog className="h-4 w-4 mr-1.5" />
+            Administrator Access Enabled
+          </p>
+        )}
+      </div>
+
+      {availableActions.length > 0 ? (
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {availableActions.map((action) => (
+            <Link
+              to={action.link}
+              key={action.link}
+              className="group block"
+            >
+              <Card className="h-full transition-all duration-200 ease-in-out group-hover:shadow-lg group-hover:border-primary/60 hover:-translate-y-1">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-lg font-semibold tracking-tight">
+                    {action.title}
+                  </CardTitle>
+                  <action.icon className="h-6 w-6 text-muted-foreground group-hover:text-primary transition-colors" />
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">
+                    {action.description}
+                  </p>
+                </CardContent>
+              </Card>
+            </Link>
+          ))}
+        </div>
+      ) : (
+        <Card>
+          <CardContent className="pt-6">
+            <p className="text-center text-muted-foreground">
+              No actions available for your role.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+================
+File: src/pages/LoginPage.tsx
+================
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuthStore } from "@/stores/authStore";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+// import { Toaster } from "@/components/ui/sooner";
+import apiService from "../services/apiService"; // Import handleApiError
+
+export default function LoginPage() {
+  const navigate = useNavigate();
+  const login = useAuthStore((state) => state.login);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+//   const { toast } = useToast();
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setIsLoading(true);
+    try {
+      await login({ email, password });
+      navigate("/"); // Redirect to dashboard on successful login
+    } catch (error) {
+    //   apiService.handleApiError(error); // Use the centralized error handler
+    console.error("Login failed:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-gray-100 dark:bg-gray-900">
+      <Card className="w-full max-w-sm">
+        <CardHeader>
+          <CardTitle className="text-2xl">Login</CardTitle>
+          <CardDescription>
+            Enter your email below to login to your account.
+          </CardDescription>
+        </CardHeader>
+        <form onSubmit={handleSubmit}>
+          <CardContent className="grid gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="m@example.com"
+                required
+                value={email}
+                onChange={(e:any) => setEmail(e.target.value)}
+                disabled={isLoading}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                type="password"
+                required
+                value={password}
+                onChange={(e:any) => setPassword(e.target.value)}
+                disabled={isLoading}
+              />
+            </div>
+          </CardContent>
+          <CardFooter className="flex flex-col items-stretch">
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? "Signing In..." : "Sign In"}
+            </Button>
+            <Button
+              variant="link"
+              type="button"
+              className="mt-4"
+              onClick={() => navigate("/register")}
+              disabled={isLoading}
+            >
+              Don't have an account? Register
+            </Button>
+          </CardFooter>
+        </form>
+      </Card>
+    </div>
+  );
+}
+
+================
+File: src/pages/RegisterPage.tsx
+================
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuthStore } from "@/stores/authStore";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+// import { useToast } from "@/components/ui/use-toast";
+import apiService from "../services/apiService"; // Import handleApiError
+import { LoaderIcon } from "lucide-react";
+
+export default function LoginPage() {
+  const navigate = useNavigate();
+  const login = useAuthStore((state) => state.login);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+//   const { toast } = useToast();
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setIsLoading(true);
+    try {
+      await apiService.auth.register({ email, password });
+    } catch (error) {
+        console.error("Login failed:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-gray-100 dark:bg-gray-900">
+      <Card className="w-full max-w-sm">
+        <CardHeader>
+          <CardTitle className="text-2xl">
+            Register
+          </CardTitle>
+          <CardDescription>
+            Enter your email below to create an account.
+          </CardDescription>
+        </CardHeader>
+        <form onSubmit={handleSubmit}>
+          <CardContent className="grid gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="m@example.com"
+                required
+                value={email}
+                onChange={(e:any) => setEmail(e.target.value)}
+                disabled={isLoading}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                type="password"
+                required
+                value={password}
+                onChange={(e:any) => setPassword(e.target.value)}
+                disabled={isLoading}
+              />
+            </div>
+          </CardContent>
+          <CardFooter className="flex flex-col items-stretch">
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? "Signing In..." : "Sign In"}
+            </Button>
+            <Button
+              variant="link"
+              className="mt-4"
+              onClick={() => navigate("/login")}
+              type="button"
+              disabled={isLoading}
+            >
+              Already have an account? Login
+            </Button>
+          </CardFooter>
+        </form>
+      </Card>
+    </div>
+  );
+}
+
+================
+File: src/pages/TestWebsocketPage.tsx
+================
+import React, {
+    useEffect,
+    useState,
+    useRef,
+    useCallback,
+    useMemo,
+  } from "react";
+  import { Socket, Channel } from "phoenix";
+  import { AuthUtils } from "@/lib/authUtils";
+  
+  // --- AG Grid Imports ---
+  import { AgGridReact } from "ag-grid-react";
+  import {
+    ColDef,
+    GridApi,
+    GridReadyEvent,
+    GetRowIdParams,
+    RowNode,
+  } from "ag-grid-community";
+  import "ag-grid-community/styles/ag-grid.css"; // Core grid CSS
+  import "ag-grid-community/styles/ag-theme-quartz.css"; // Theme
+  
+  // +++ ADD THESE LINES +++
+  import { ModuleRegistry, AllCommunityModule } from 'ag-grid-community'; // Import ModuleRegistry and the bundle
+  
+  // Register the required AG Grid modules
+  ModuleRegistry.registerModules([ AllCommunityModule ]);
+  // +++++++++++++++++++++++
+  
+  
+  // --- Configuration ---
+  const WS_ENDPOINT = "ws://localhost:4000/socket"; // Phoenix WebSocket URL
+  const CHANNEL_TOPIC = "vehicles:live"; // Phoenix Channel topic
+  
+  // Vehicle interface remains the same
+  interface Vehicle {
+    id: number;
+    code: string;
+    vin: string;
+    manufacturer: string;
+    model: string;
+    make_year: number;
+    status: string;
+    type: string;
+  }
+  
+  /**
+   * VehicleLiveUpdater
+   * Connects to Phoenix socket, joins the vehicles:live channel,
+   * listens for vehicle events, and updates the AG Grid in real time with highlighting.
+   */
+  export default function VehicleLiveUpdater() {
+    // State for vehicles remains, AG Grid will use this indirectly via API
+    const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+    const [error, setError] = useState<string | null>(null);
+    const [lastChangedVehicleId, setLastChangedVehicleId] = useState<
+      number | null
+    >(null);
+    const lastChangedTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+    // --- AG Grid Refs and State ---
+    const gridRef = useRef<AgGridReact>(null);
+    const [gridApi, setGridApi] = useState<GridApi | null>(null);
+  
+    const token = AuthUtils.getToken();
+  
+    // --- AG Grid Column Definitions ---
+    const columnDefs = useMemo<ColDef[]>(
+      () => [
+        { field: "id", headerName: "ID", width: 90, sortable: true },
+        { field: "code", headerName: "Code", flex: 1, sortable: true },
+        { field: "vin", headerName: "VIN", flex: 1, sortable: true },
+        {
+          field: "manufacturer",
+          headerName: "Manufacturer",
+          flex: 1,
+          sortable: true,
+        },
+        { field: "model", headerName: "Model", flex: 1, sortable: true },
+        {
+          field: "make_year",
+          headerName: "Year",
+          width: 100,
+          sortable: true,
+        },
+        { field: "status", headerName: "Status", flex: 1, sortable: true },
+        { field: "type", headerName: "Type", flex: 1, sortable: true },
+      ],
+      [],
+    );
+  
+    // --- AG Grid Row ID Getter ---
+    const getRowId = useCallback((params: GetRowIdParams<Vehicle>) => {
+      return params.data.id.toString(); // Use vehicle ID as the row ID
+    }, []);
+  
+    // --- AG Grid Ready Callback ---
+    const onGridReady = useCallback((params: GridReadyEvent) => {
+      console.log("AG Grid Ready");
+      setGridApi(params.api);
+      // Apply initial data if it arrived before grid was ready
+      if (vehicles.length > 0) {
+        console.log("Applying initial data to ready grid");
+        params.api.setGridOption("rowData", vehicles);
+      }
+    }, [vehicles]); // Re-run if vehicles state changes before grid is ready
+  
+    // --- Highlight Handling ---
+    const handleLastChanged = useCallback(
+      (vehicleId: number) => {
+        if (lastChangedTimeoutRef.current) {
+          clearTimeout(lastChangedTimeoutRef.current);
+        }
+  
+        setLastChangedVehicleId(vehicleId);
+  
+        if (gridApi) {
+          const node = gridApi.getRowNode(vehicleId.toString());
+          if (node) {
+            // Redraw only the specific node for efficiency
+            gridApi.redrawRows({ rowNodes: [node] });
+          } else {
+            // If node not found (e.g., for 'add'), redraw all might be needed
+            // or rely on the transaction to add the row correctly.
+            // A full redraw is a simpler fallback.
+            gridApi.redrawRows();
+          }
+        }
+  
+        const timerId = setTimeout(() => {
+          const currentLastChangedId = vehicleId; // Capture the ID for the timeout
+          setLastChangedVehicleId((prevId) =>
+            prevId === currentLastChangedId ? null : prevId,
+          ); // Only clear if it's still the same ID
+  
+          // Trigger grid redraw again to remove highlight
+          if (gridApi) {
+            const node = gridApi.getRowNode(currentLastChangedId.toString());
+            if (node) {
+              gridApi.redrawRows({ rowNodes: [node] });
+            } else {
+               // Fallback if node somehow gone, redraw all might be needed
+               // but less likely needed when *removing* highlight
+               // gridApi.redrawRows();
+            }
+          }
+        }, 3000); // Highlight for 3 seconds
+  
+        lastChangedTimeoutRef.current = timerId;
+      },
+      [gridApi], // Depend on gridApi being available
+    );
+  
+    // --- WebSocket Effect ---
+    useEffect(() => {
+      const socket = new Socket(WS_ENDPOINT, { params: { token } });
+      socket.connect();
+      const channel: Channel = socket.channel(CHANNEL_TOPIC, {});
+  
+      channel
+        .join()
+        .receive("ok", (resp) => {
+          console.info("✅ Joined channel:", CHANNEL_TOPIC, resp);
+        })
+        .receive("error", (resp) => {
+          console.error("❌ Failed to join channel:", resp);
+          setError("Failed to join live channel.");
+        });
+  
+      // --- Event Handlers using AG Grid API ---
+  
+      channel.on("initial_vehicles", (payload: { data: Vehicle[] }) => {
+        console.log("📥 Initial vehicles:", payload.data);
+        setVehicles(payload.data); // Update React state
+        if (gridApi) {
+          console.log("Applying initial data via gridApi");
+          gridApi.setGridOption("rowData", payload.data); // Set data in AG Grid
+        }
+      });
+  
+      channel.on("vehicle_created", (payload: { data: Vehicle }) => {
+        console.log("📥 vehicle_created:", payload.data);
+        setVehicles((prev) => [payload.data, ...prev]);
+        if (gridApi) {
+          gridApi.applyTransaction({ add: [payload.data], addIndex: 0 });
+        }
+        handleLastChanged(payload.data.id);
+      });
+  
+      channel.on("vehicle_deleted", (payload: { id: number }) => {
+        console.log("📥 vehicle_deleted:", payload.id);
+        setVehicles((prev) => prev.filter((v) => v.id !== payload.id));
+        if (gridApi) {
+          // Find the node to remove. getRowId ensures we can use the ID directly.
+          const nodeToRemove = gridApi.getRowNode(payload.id.toString());
+          if (nodeToRemove) {
+              gridApi.applyTransaction({ remove: [nodeToRemove.data] });
+          } else {
+              console.warn(`Could not find node with ID ${payload.id} to remove.`);
+              // As a fallback, you might force a refresh, but ideally getRowId works
+              // gridApi.setGridOption('rowData', vehicles.filter(v => v.id !== payload.id));
+          }
+        }
+      });
+  
+      channel.on("vehicle_updated", (payload: { data: Vehicle }) => {
+        console.log("📥 vehicle_updated:", payload.data);
+        setVehicles((prev) =>
+          prev.map((v) =>
+            v.id === payload.data.id ? { ...v, ...payload.data } : v,
+          ),
+        );
+        if (gridApi) {
+          gridApi.applyTransaction({ update: [payload.data] });
+        }
+        handleLastChanged(payload.data.id);
+      });
+  
+      channel.onError((err) => {
+        console.error("Channel error:", err);
+        setError("Channel encountered an error.");
+      });
+  
+      socket.onClose((event) => {
+        console.warn("WebSocket closed:", event);
+      });
+  
+      // Cleanup
+      return () => {
+        if (channel) channel.leave();
+        if (socket) socket.disconnect();
+        if (lastChangedTimeoutRef.current) {
+          clearTimeout(lastChangedTimeoutRef.current);
+        }
+        console.log("WebSocket Cleanup");
+      };
+    }, [token, gridApi, handleLastChanged]); // Add gridApi and handleLastChanged dependencies
+  
+    if (error) {
+      return (
+        <div className="flex justify-center items-center h-screen text-red-600 text-lg font-semibold">
+          Error: {error}
+        </div>
+      );
+    }
+  
+    // --- AG Grid Row Class Rules for Highlighting ---
+    const rowClassRules = useMemo(() => {
+      return {
+        "ag-row-highlight": (params: { data?: Vehicle }) =>
+          params.data?.id === lastChangedVehicleId,
+      };
+    }, [lastChangedVehicleId]);
+  
+    return (
+      <div className="container mx-auto p-6 bg-gray-100 min-h-screen flex flex-col">
+        <h2 className="text-3xl font-bold mb-6 text-gray-800 border-b pb-2">
+          Live Vehicle Updates (AG Grid)
+        </h2>
+  
+        {/* AG Grid Component */}
+        <div
+          className="ag-theme-quartz flex-grow" // Use flex-grow to fill available space
+        >
+          <AgGridReact
+            ref={gridRef}
+            columnDefs={columnDefs}
+            getRowId={getRowId}
+            onGridReady={onGridReady}
+            rowClassRules={rowClassRules}
+            pagination={true}
+            paginationPageSize={20}
+            paginationPageSizeSelector={[20, 50, 100]}
+            domLayout="autoHeight" // Or 'normal' with fixed container height
+            animateRows={true}
+            // No need to set rowData here if onGridReady handles initial load
+            // and transactions handle updates
+          />
+        </div>
+      </div>
+    );
+  }
+
+================
+File: src/pages/VehiclesPage.tsx
+================
+// src/pages/VehiclesPage.tsx
+import React, { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { toast } from "sonner";
+import LoadingSpinner from "@/components/shared/LoadingSpinner";
+import { AlertCircle, List, Map as MapIcon } from "lucide-react"; // Import icons
+
+// Import your components
+import { VehicleList } from "@/components/vehicles/VehicleList";
+import { CreateVehicleDialog } from "@/components/vehicles/CreateVehicleDialog";
+import { ViewVehicleDialog } from "@/components/vehicles/ViewVehicleDialog";
+import { EditVehicleDialog } from "@/components/vehicles/EditVehicleDialog";
+import { DeleteVehicleDialog } from "@/components/vehicles/DeleteVehicleDialog";
+import { VehicleMap } from "@/components/vehicles/VehicleMap"; // Import the new map component
+
+// Import types and services
+import apiService from "@/services/apiService";
+import { Vehicle } from "@/types/vehicle";
+
+// --- Main Vehicles Page Component ---
+export default function VehiclesPage() {
+  // State for controlling dialogs
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [viewingVehicleId, setViewingVehicleId] = useState<string | null>(null);
+  const [editingVehicleId, setEditingVehicleId] = useState<string | null>(null);
+  const [deletingVehicle, setDeletingVehicle] = useState<{ id: string; code: string } | null>(null);
+
+  const [viewMode, setViewMode] = useState<'table' | 'map'>('table');
+  const isViewOpen = !!viewingVehicleId;
+  const isEditOpen = !!editingVehicleId;
+  const isDeleteOpen = !!deletingVehicle;
+
+  // Fetch vehicle list data
+  const {
+    data: vehicles,
+    isLoading,
+    error,
+    isError,
+    refetch,
+  } = useQuery<Vehicle[], Error>({
+    queryKey: ["vehicles"],
+    queryFn: () => apiService.vehicles.list(),
+    refetchOnWindowFocus: false,
+  });
+
+  // --- Action Handlers (Dialogs) ---
+  const handleView = (vehicleId: string) => setViewingVehicleId(vehicleId);
+  const handleEdit = (vehicleId: string) => setEditingVehicleId(vehicleId);
+  const handleDelete = (vehicleId: string, vehicleCode: string) => setDeletingVehicle({ id: vehicleId, code: vehicleCode });
+  // --- End Action Handlers ---
+
+  // --- Render Logic ---
+  if (isError) {
+    // Toast is likely already shown by the query's onError or apiService handler
+    console.error("Error fetching vehicles:", error);
+    return (
+      <div className="container mx-auto py-10 px-4 sm:px-6 lg:px-8">
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Error Fetching Vehicles</AlertTitle>
+          <AlertDescription>
+            Could not load vehicle data. Please try again later or contact support.
+            <div className="mt-4">
+              <Button onClick={() => refetch()} variant="secondary"> Try Again </Button>
+            </div>
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+
+  return (
+    <div className="container mx-auto py-10 px-4 sm:px-6 lg:px-8">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+        <h1 className="text-3xl font-bold tracking-tight">Manage Vehicles</h1>
+        <div className="flex gap-2 items-center">
+           {/* --- View Mode Toggle Buttons --- */}
+           <Button
+             variant={viewMode === 'table' ? 'secondary' : 'outline'}
+             size="icon"
+             onClick={() => setViewMode('table')}
+             aria-label="Switch to table view"
+           >
+             <List className="h-4 w-4" />
+           </Button>
+           <Button
+             variant={viewMode === 'map' ? 'secondary' : 'outline'}
+             size="icon"
+             onClick={() => setViewMode('map')}
+             aria-label="Switch to map view"
+           >
+             <MapIcon className="h-4 w-4" />
+           </Button>
+           {/* --- End View Mode Toggle Buttons --- */}
+
+          {/* Create Dialog Trigger */}
+          <CreateVehicleDialog
+            isOpen={isCreateOpen}
+            onOpenChange={setIsCreateOpen}
+          />
+        </div>
+      </div>
+
+      {/* Show loading spinner overlaying the content area */}
+      {isLoading && (
+         <div className="flex justify-center items-center h-64">
+            <LoadingSpinner />
+         </div>
+      )}
+
+      {/* Conditionally render Table or Map View (only when not loading) */}
+      {!isLoading && viewMode === 'table' && (
+        <VehicleList
+          vehicles={vehicles || []}
+          isLoading={isLoading}
+          onView={handleView}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+        />
+      )}
+      {!isLoading && viewMode === 'map' && (
+        <VehicleMap vehicles={vehicles || []} />
+      )}
+
+      {/* Render Modals/Dialogs (remain unchanged) */}
+      <ViewVehicleDialog
+        vehicleId={viewingVehicleId}
+        isOpen={isViewOpen}
+        onOpenChange={(open) => !open && setViewingVehicleId(null)}
+      />
+      <EditVehicleDialog
+        vehicleId={editingVehicleId}
+        isOpen={isEditOpen}
+        onOpenChange={(open) => !open && setEditingVehicleId(null)}
+      />
+      <DeleteVehicleDialog
+        vehicleId={deletingVehicle?.id ?? null}
+        vehicleCode={deletingVehicle?.code ?? null}
+        isOpen={isDeleteOpen}
+        onOpenChange={(open) => !open && setDeletingVehicle(null)}
+      />
+    </div>
+  );
+}
+
+================
+File: src/stores/authStore.ts
+================
+import { create } from "zustand";
+import { AuthUtils, User } from "@/lib/authUtils";
+import apiService from "../services/apiService"; // Import your API service
+
+// Define the type for login credentials
+interface LoginPayload {
+  email: string; // Or username, depending on your API
+  password: string;
+}
+
+interface AuthState {
+  user: User | null;
+  token: string | null;
+  isAuthenticated: boolean;
+  isLoading: boolean; // For initial auth check
+  login: (credentials: LoginPayload) => Promise<void>;
+  logout: () => void;
+  initializeAuth: () => void; // Function to check token on app load
+}
+
+export const useAuthStore = create<AuthState>((set, get) => ({
+  user: null,
+  token: null,
+  isAuthenticated: false,
+  isLoading: true, // Start loading initially
+
+  initializeAuth: () => {
+    const token = AuthUtils.getToken();
+    if (token) {
+      const decoded = AuthUtils.decodeToken(token);
+      if (decoded) {
+        set({
+          user: decoded.user,
+          token: token,
+          isAuthenticated: true,
+          isLoading: false,
+        });
+        return; // Exit if valid token found
+      } else {
+        // Token exists but is invalid/expired
+        AuthUtils.clearToken();
+      }
+    }
+    // No valid token found
+    set({ isLoading: false });
+  },
+
+  login: async (credentials) => {
+    try {
+      const { token, user } = await apiService.auth.login(credentials);
+      AuthUtils.setToken(token);
+      set({ user, token, isAuthenticated: true });
+    } catch (error) {
+      console.error("Login failed:", error);
+      AuthUtils.clearToken(); // Ensure token is cleared on failed login attempt
+      set({ user: null, token: null, isAuthenticated: false });
+      // Re-throw the error so the component can display a message
+      throw error;
+    }
+  },
+
+  logout: () => {
+    AuthUtils.clearToken();
+    set({ user: null, token: null, isAuthenticated: false });
+    // Optionally redirect here or let the ProtectedRoute handle it
+    // window.location.href = '/login';
+  },
+}));
+
+// Call initializeAuth when the store is first used/app loads
+// This can be done in your main App component or layout
+// useAuthStore.getState().initializeAuth(); // Or call within a useEffect
+
+================
+File: src/index.css
+================
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "ag-grid-community/styles/ag-grid.css";
+@import "ag-grid-community/styles/ag-theme-quartz.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+/* Define the highlight style */
+.ag-theme-quartz .ag-row-highlight {
+  background-color: #ffff99 !important; /* Light yellow background */
+  transition: background-color 0.5s ease-out !important; /* Smooth transition */
+}
+
+/* Optional: Style for when highlight is removed */
+.ag-theme-quartz .ag-row {
+  transition: background-color 0.5s ease-out !important;
+}
+:root {
+  --radius: 0.625rem;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.129 0.042 264.695);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.129 0.042 264.695);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.129 0.042 264.695);
+  --primary: oklch(0.208 0.042 265.755);
+  --primary-foreground: oklch(0.984 0.003 247.858);
+  --secondary: oklch(0.968 0.007 247.896);
+  --secondary-foreground: oklch(0.208 0.042 265.755);
+  --muted: oklch(0.968 0.007 247.896);
+  --muted-foreground: oklch(0.554 0.046 257.417);
+  --accent: oklch(0.968 0.007 247.896);
+  --accent-foreground: oklch(0.208 0.042 265.755);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.929 0.013 255.508);
+  --input: oklch(0.929 0.013 255.508);
+  --ring: oklch(0.704 0.04 256.788);
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+  --sidebar: oklch(0.984 0.003 247.858);
+  --sidebar-foreground: oklch(0.129 0.042 264.695);
+  --sidebar-primary: oklch(0.208 0.042 265.755);
+  --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
+  --sidebar-accent: oklch(0.968 0.007 247.896);
+  --sidebar-accent-foreground: oklch(0.208 0.042 265.755);
+  --sidebar-border: oklch(0.929 0.013 255.508);
+  --sidebar-ring: oklch(0.704 0.04 256.788);
+}
+
+.dark {
+  --background: oklch(0.129 0.042 264.695);
+  --foreground: oklch(0.984 0.003 247.858);
+  --card: oklch(0.208 0.042 265.755);
+  --card-foreground: oklch(0.984 0.003 247.858);
+  --popover: oklch(0.208 0.042 265.755);
+  --popover-foreground: oklch(0.984 0.003 247.858);
+  --primary: oklch(0.929 0.013 255.508);
+  --primary-foreground: oklch(0.208 0.042 265.755);
+  --secondary: oklch(0.279 0.041 260.031);
+  --secondary-foreground: oklch(0.984 0.003 247.858);
+  --muted: oklch(0.279 0.041 260.031);
+  --muted-foreground: oklch(0.704 0.04 256.788);
+  --accent: oklch(0.279 0.041 260.031);
+  --accent-foreground: oklch(0.984 0.003 247.858);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.551 0.027 264.364);
+  --chart-1: oklch(0.488 0.243 264.376);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-5: oklch(0.645 0.246 16.439);
+  --sidebar: oklch(0.208 0.042 265.755);
+  --sidebar-foreground: oklch(0.984 0.003 247.858);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
+  --sidebar-accent: oklch(0.279 0.041 260.031);
+  --sidebar-accent-foreground: oklch(0.984 0.003 247.858);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.551 0.027 264.364);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+:root {
+  --radius: 0.5rem;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.141 0.005 285.823);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.141 0.005 285.823);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.141 0.005 285.823);
+  --primary: oklch(0.21 0.006 285.885);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.967 0.001 286.375);
+  --secondary-foreground: oklch(0.21 0.006 285.885);
+  --muted: oklch(0.967 0.001 286.375);
+  --muted-foreground: oklch(0.552 0.016 285.938);
+  --accent: oklch(0.967 0.001 286.375);
+  --accent-foreground: oklch(0.21 0.006 285.885);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.92 0.004 286.32);
+  --input: oklch(0.92 0.004 286.32);
+  --ring: oklch(0.705 0.015 286.067);
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.141 0.005 285.823);
+  --sidebar-primary: oklch(0.21 0.006 285.885);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.967 0.001 286.375);
+  --sidebar-accent-foreground: oklch(0.21 0.006 285.885);
+  --sidebar-border: oklch(0.92 0.004 286.32);
+  --sidebar-ring: oklch(0.705 0.015 286.067);
+}
+
+.dark {
+  --background: oklch(0.141 0.005 285.823);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.21 0.006 285.885);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.21 0.006 285.885);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.92 0.004 286.32);
+  --primary-foreground: oklch(0.21 0.006 285.885);
+  --secondary: oklch(0.274 0.006 286.033);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.274 0.006 286.033);
+  --muted-foreground: oklch(0.705 0.015 286.067);
+  --accent: oklch(0.274 0.006 286.033);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.552 0.016 285.938);
+  --chart-1: oklch(0.488 0.243 264.376);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-5: oklch(0.645 0.246 16.439);
+  --sidebar: oklch(0.21 0.006 285.885);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.274 0.006 286.033);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.552 0.016 285.938);
+}
+
+================
+File: src/App.tsx
+================
+import { useEffect } from "react";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Outlet,
+  Navigate,
+} from "react-router-dom";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+// import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
+import { useAuthStore } from "@/stores/authStore";
+import LoginPage from "@/pages/LoginPage";
+import RegisterPage from "@/pages/RegisterPage";
+import DashboardPage from "@/pages/DashboardPage";
+// import ApiAuthPage from "@/pages/ApiAuthPage";
+import VehiclesPage from "@/pages/VehiclesPage";
+// import IotPage from "@/pages/IotPage";
+import { Toaster } from "@/components/ui/sonner"; // Shadcn Toaster
+import { ThemeProvider } from "./components/theme-provider";
+import 'leaflet/dist/leaflet.css';
+import VehicleLiveUpdater from "./pages/TestWebsocketPage";
+
+// import LoadingSpinner from "@/components/shared/LoadingSpinner"; // Create this component
+
+// Create a client
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5, // 5 minutes
+      refetchOnWindowFocus: false, // Optional: Adjust as needed
+    },
+  },
+});
+
+function App() {
+  const initializeAuth = useAuthStore((state) => state.initializeAuth);
+  const isLoadingAuth = useAuthStore((state) => state.isLoading);
+
+  useEffect(() => {
+    initializeAuth();
+  }, [initializeAuth]);
+
+  if (isLoadingAuth) {
+    // Show a full-page loader while checking auth status
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <LoadingSpinner size="lg" />
+      </div>
+    );
+  }
+
+  return (
+    <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
+      <QueryClientProvider client={queryClient}>
+        <Router>
+          <Routes>
+            {/* Public Routes */}
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
+
+            {/* Protected Routes */}
+            <Route element={<ProtectedLayout />}>
+              <Route path="/" element={<DashboardPage />} />
+              {/* <Route path="/api-auth" element={<ApiAuthPage />} /> */}
+              <Route path="/vehicles" element={<VehiclesPage />} />
+              <Route path="/testing" element={<VehicleLiveUpdater/>} />
+              {/* <Route path="/iot" element={<IotPage />} /> */}
+              {/* Add other protected routes here */}
+            </Route>
+
+            {/* Catch-all or Not Found Route (Optional) */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Router>
+        <Toaster richColors position="top-right" />
+        {/* <ReactQueryDevtools initialIsOpen={false} /> */}
+      </QueryClientProvider>
+    </ThemeProvider>
+  );
+}
+
+// Layout for protected routes
+function ProtectedLayout() {
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  // You might want a brief loading state here too if auth check is async on navigation
+  // const isLoading = useAuthStore((state) => state.isLoading);
+  // if (isLoading) return <LoadingSpinner />;
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  // Render the nested routes (the actual page component)
+  // You can add a common layout wrapper here (Navbar, Sidebar, etc.)
+  return (
+    <div className="flex min-h-screen flex-col">
+      {/* Example: <Navbar /> */}
+      <main className="flex-grow p-4 md:p-8">
+        <Outlet /> {/* Renders the matched child route component */}
+      </main>
+      {/* Example: <Footer /> */}
+    </div>
+  );
+}
+
+// Basic Loading Spinner Component (`src/components/shared/LoadingSpinner.tsx`)
+// You can customize this further
+interface LoadingSpinnerProps {
+  size?: "sm" | "md" | "lg";
+}
+const LoadingSpinner = ({ size = "md" }: LoadingSpinnerProps) => {
+  const sizeClasses = {
+    sm: "h-5 w-5",
+    md: "h-8 w-8",
+    lg: "h-12 w-12",
+  };
+  return (
+    <div
+      className={`animate-spin rounded-full border-4 border-primary border-t-transparent ${sizeClasses[size]}`}
+      role="status"
+      aria-label="Loading..."
+    ></div>
+  );
+};
+
+export default App;
+
+================
+File: src/services/apiService.ts
+================
+// src/services/apiService.ts
+import axios, { AxiosError, AxiosResponse } from "axios";
+import { AuthUtils } from "../lib/authUtils"; // Assuming this exists and works
+
+// Import all necessary types
+import type { SelectOption, ApiErrorResponse, ApiValidationError } from "@/types/api";
+import type { LoginPayload, LoginResponse, RegisterPayload } from "@/types/auth";
+import type { ApiAuthToken, CreateApiAuthTokenPayload } from "@/types/apiAuthToken";
+import type { Vehicle, CreateVehiclePayload, UpdateVehiclePayload } from "@/types/vehicle";
+import type { IotDevice, CreateIotDevicePayload, UpdateIotDevicePayload } from "@/types/iotDevice";
+
+// Centralized API Client Configuration
+const apiClient = axios.create({
+  baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:4000/api", // Use env variable
+  headers: {
+    "Content-Type": "application/json",
+    // CORS headers are typically set by the *server*, not the client request
+    // "Access-Control-Allow-Origin": "*", // Remove unless specifically needed and understood
+    // "Access-Control-Allow-Methods": "*", // Remove
+  },
+  timeout: 10000, // Example: Add a request timeout
+});
+
+// --- Interceptors ---
+
+// Request Interceptor: Add JWT token
+apiClient.interceptors.request.use(
+  (config) => {
+    const token = AuthUtils.getToken();
+    // Ensure headers object exists before modification
+    if (token) {
+      config.headers = config.headers ?? {};
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
+// Response Interceptor: Handle global errors like 401
+apiClient.interceptors.response.use(
+  (response) => response, // Pass through successful responses
+  (error: AxiosError) => {
+    if (error.response?.status === 401) {
+      console.error("API Error: 401 Unauthorized. Token might be invalid or expired.");
+      AuthUtils.clearToken();
+      // Use a more robust navigation method if possible (e.g., router hook outside service)
+      // This simple redirect might cause issues in complex apps or during SSR
+      if (window.location.pathname !== "/login") {
+         window.location.href = "/login";
+      }
+    }
+    // Rethrow the error so specific catch blocks or React Query's onError can handle it
+    return Promise.reject(error);
+  }
+);
+
+// --- API Function Definitions (Grouped by Resource) ---
+
+const authApi = {
+  login: async (data: LoginPayload): Promise<LoginResponse> => {
+    const response = await apiClient.post<LoginResponse>("/login", data);
+    return response.data; // Return only the data payload
+  },
+
+  register: async (data: RegisterPayload): Promise<void> => {
+    // Assuming success is indicated by 2xx status, no specific data needed
+    await apiClient.post<void>("/register", data);
+  },
+
+  // Add logout, forgotPassword, etc. if needed
+};
+
+const apiAuthTokenApi = {
+  list: async (): Promise<ApiAuthToken[]> => {
+    const response = await apiClient.get<ApiAuthToken[]>("/api_auth");
+    return response.data;
+  },
+
+  create: async (data: CreateApiAuthTokenPayload): Promise<ApiAuthToken> => {
+    const response = await apiClient.post<ApiAuthToken>("/api_auth", data);
+    return response.data;
+  },
+
+  getById: async (id: string): Promise<ApiAuthToken> => {
+     const response = await apiClient.get<ApiAuthToken>(`/api_auth/${id}`);
+     return response.data;
+  },
+
+  delete: async (id: string): Promise<void> => {
+     await apiClient.delete<void>(`/api_auth/${id}`);
+  },
+
+  // Add update if needed
+  // update: async (id: string, data: UpdateApiAuthTokenPayload): Promise<ApiAuthToken> => {
+  //   const response = await apiClient.put<ApiAuthToken>(`/api_auth/${id}`, data);
+  //   return response.data;
+  // },
+
+  // Example: Simplified fetch for selects
+  listForSelect: async (): Promise<SelectOption[]> => {
+    // Adjust fields based on API capabilities
+    const response = await apiClient.get<Pick<ApiAuthToken, 'id' | 'title'>[]>("/api_auth?fields=id,title");
+    return response.data.map((token) => ({
+      value: token.id,
+      label: token.title,
+    }));
+  },
+};
+
+const vehicleApi = {
+  list: async (): Promise<Vehicle[]> => {
+    const response = await apiClient.get<Vehicle[]>("/vehicles");
+    console.log(response.data)
+    return response.data;
+  },
+
+  create: async (data: CreateVehiclePayload): Promise<Vehicle> => {
+    const response = await apiClient.post<Vehicle>("/vehicles", data);
+    return response.data;
+  },
+
+  getById: async (id: string): Promise<Vehicle> => {
+    const response = await apiClient.get<Vehicle>(`/vehicles/${id}`);
+    return response.data;
+  },
+
+  update: async (id: string, data: UpdateVehiclePayload): Promise<Vehicle> => {
+    console.log("Updating vehicle with ID:", id, "and data:", data);
+    const response = await apiClient.put<Vehicle>(`/vehicles/${id}`, data);
+    return response.data;
+  },
+
+  delete: async (id: string): Promise<void> => {
+    await apiClient.delete<void>(`/vehicles/${id}`);
+  },
+
+  // Example: Simplified fetch for selects
+  listForSelect: async (): Promise<SelectOption[]> => {
+    // Adjust fields based on API capabilities
+    const response = await apiClient.get<Pick<Vehicle, 'id' | 'code' | 'plate'>[]>("/vehicles?fields=id,code,plate");
+    return response.data.map((v) => ({
+      value: v.id,
+      label: `${v.code} (${v.plate})`,
+    }));
+  },
+};
+
+const iotDeviceApi = {
+  list: async (): Promise<IotDevice[]> => {
+    const response = await apiClient.get<IotDevice[]>("/iot");
+    return response.data;
+  },
+
+  create: async (data: CreateIotDevicePayload): Promise<IotDevice> => {
+    const response = await apiClient.post<IotDevice>("/iot", data);
+    return response.data;
+  },
+
+   getById: async (id: string): Promise<IotDevice> => {
+     const response = await apiClient.get<IotDevice>(`/iot/${id}`);
+     return response.data;
+   },
+
+   update: async (id: string, data: UpdateIotDevicePayload): Promise<IotDevice> => {
+     const response = await apiClient.put<IotDevice>(`/iot/${id}`, data);
+     return response.data;
+   },
+
+   delete: async (id: string): Promise<void> => {
+     await apiClient.delete<void>(`/iot/${id}`);
+   },
+};
+
+// --- Utility Functions ---
+
+/**
+ * Centralized error handler for API calls, primarily for displaying toasts.
+ * @param error The error object caught (unknown type).
+ * @param toastFn A function (like `toast.error`) to display the error message.
+ * @returns Structured validation errors if available, otherwise null.
+ */
+export const handleApiError = (
+  error: unknown,
+  // Use a more specific type for toast options if available from your library
+  toastFn: (title: string, options?: { description?: string; [key: string]: any }) => void
+): ApiValidationError | null => {
+  let title = "An error occurred";
+  let description = "Please try again later or contact support.";
+  let validationErrors: ApiValidationError | null = null;
+
+  if (axios.isAxiosError(error)) {
+    const axiosError = error as AxiosError<ApiErrorResponse>; // Type assertion
+    const status = axiosError.response?.status;
+    const responseData = axiosError.response?.data;
+
+    title = `Error${status ? `: ${status}` : ''}`;
+
+    if (status === 401) {
+      // Already handled by interceptor, but prevent generic toast for it
+      title = "Unauthorized";
+      description = "Your session may have expired. Please log in again.";
+      // Don't show toast here if interceptor redirects
+      // toastFn(title, { description });
+      return null; // Don't return validation errors for 401
+    } else if (responseData) {
+      // Use specific messages from API response if available
+      if (responseData.message) {
+        description = responseData.message;
+      }
+      if (responseData.errors) {
+        // Format validation errors for toast description
+        description = Object.entries(responseData.errors)
+          .map(
+            ([field, messages]) =>
+              `${field}: ${messages.join(", ")}`
+          )
+          .join("; ");
+        validationErrors = responseData.errors; // Store for form handling
+        title = "Validation Error"; // More specific title
+      }
+    } else if (axiosError.message) {
+        // Fallback to Axios error message
+        description = axiosError.message;
+        if (axiosError.code === 'ECONNABORTED') {
+            title = "Request Timeout";
+            description = "The request took too long to complete. Please check your connection and try again.";
+        } else if (!axiosError.response) {
+            title = "Network Error";
+            description = "Could not connect to the server. Please check your network connection.";
+        }
+    }
+  } else if (error instanceof Error) {
+    // Handle non-Axios errors
+    description = error.message;
+    title = "Application Error";
+  }
+
+  // Display the toast notification (unless it was a 401 handled by interceptor)
+  if (error && !(axios.isAxiosError(error) && error.response?.status === 401)) {
+      toastFn(title, { description });
+  }
+
+
+  // Return validation errors for potential use in forms
+  return validationErrors;
+};
+
+
+// --- Default Export ---
+// Consolidate all API functions into a single export object
+const apiService = {
+  auth: authApi,
+  apiAuthTokens: apiAuthTokenApi,
+  vehicles: vehicleApi,
+  iotDevices: iotDeviceApi,
+  handleApiError, // Expose the error handler utility
+};
+
+export default apiService;
+
+
+
+================================================================
+End of Codebase
+================================================================

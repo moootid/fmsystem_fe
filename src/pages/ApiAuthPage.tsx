@@ -1,237 +1,113 @@
-// import { useState } from "react";
-// import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-// import apiService, { ApiAuthToken } from "@/services/apiService"; // Assuming ApiAuthToken type is exported
-// import { Button } from "@/components/ui/button";
-// import {
-//   Dialog,
-//   DialogContent,
-//   DialogHeader,
-//   DialogTitle,
-//   DialogTrigger,
-//   DialogFooter,
-//   DialogDescription,
-//   DialogClose,
-// } from "@/components/ui/dialog";
-// import { Input } from "@/components/ui/input";
-// import { Label } from "@/components/ui/label";
-// import { useToast } from "@/components/ui/use-toast";
-// import LoadingSpinner from "@/components/shared/LoadingSpinner";
-// import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-// import {
-//   Table,
-//   TableBody,
-//   TableCell,
-//   TableHead,
-//   TableHeader,
-//   TableRow,
-//   TableCaption, // Added for empty state
-// } from "@/components/ui/table";
-// import { ExclamationTriangleIcon, PlusCircledIcon } from "@radix-ui/react-icons"; // Icons
+// src/pages/ApiAuthPage.tsx
+import React, { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import LoadingSpinner from "@/components/shared/LoadingSpinner";
+import { AlertCircle } from "lucide-react";
 
-// // --- Create Token Form Component ---
-// const CreateApiAuthTokenForm = ({ onSuccess }: { onSuccess: () => void }) => {
-//   const queryClient = useQueryClient();
-//   const { toast } = useToast();
-//   const [title, setTitle] = useState("");
-//   const [description, setDescription] = useState("");
+// Import your components for API Keys
+import { ApiKeyList } from "@/components/apikeys/ApiKeyList";
+import { CreateApiKeyDialog } from "@/components/apikeys/CreateApiKeyDialog";
+import { EditApiKeyDialog } from "@/components/apikeys/EditApiKeyDialog";
+import { DeleteApiKeyDialog } from "@/components/apikeys/DeleteApiKeyDialog";
 
-//   const mutation = useMutation({
-//     mutationFn: apiService.createApiAuthToken,
-//     onSuccess: (data) => {
-//       toast({
-//         title: "API Token Created",
-//         description: `Token "${data.title}" created successfully.`,
-//       });
-//       queryClient.invalidateQueries({ queryKey: ["apiAuth"] });
-//       onSuccess(); // Close the dialog
-//     },
-//     onError: (error) => {
-//       apiService.handleApiError(error, toast);
-//     },
-//   });
+// Import types and services
+import apiService from "@/services/apiService";
+import { ApiAuthToken } from "@/types/apiAuthToken";
 
-//   const handleSubmit = (e: React.FormEvent) => {
-//     e.preventDefault();
-//     if (!title) {
-//       // Basic validation
-//       toast({
-//         variant: "destructive",
-//         title: "Validation Error",
-//         description: "Title is required.",
-//       });
-//       return;
-//     }
-//     mutation.mutate({ title, description });
-//   };
+export default function ApiAuthPage() {
+  // State for controlling dialogs
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [editingApiKeyId, setEditingApiKeyId] = useState<string | null>(null);
+  const [deletingApiKey, setDeletingApiKey] = useState<{ id: string; title: string } | null>(null);
 
-//   return (
-//     <form onSubmit={handleSubmit} className="grid gap-4 py-4">
-//       <div className="grid grid-cols-4 items-center gap-4">
-//         <Label htmlFor="title" className="text-right">
-//           Title*
-//         </Label>
-//         <Input
-//           id="title"
-//           value={title}
-//           onChange={(e) => setTitle(e.target.value)}
-//           className="col-span-3"
-//           disabled={mutation.isPending}
-//           required
-//           placeholder="e.g., My App Integration"
-//         />
-//       </div>
-//       <div className="grid grid-cols-4 items-center gap-4">
-//         <Label htmlFor="description" className="text-right">
-//           Description
-//         </Label>
-//         <Input
-//           id="description"
-//           value={description}
-//           onChange={(e) => setDescription(e.target.value)}
-//           className="col-span-3"
-//           disabled={mutation.isPending}
-//           placeholder="(Optional) Describe the token's purpose"
-//         />
-//       </div>
-//       <DialogFooter>
-//         <DialogClose asChild>
-//           <Button variant="outline" type="button">
-//             Cancel
-//           </Button>
-//         </DialogClose>
-//         <Button type="submit" disabled={mutation.isPending}>
-//           {mutation.isPending ? (
-//             <>
-//               <LoadingSpinner size="sm" /> <span className="ml-2">Creating...</span>
-//             </>
-//           ) : (
-//             "Create Token"
-//           )}
-//         </Button>
-//       </DialogFooter>
-//     </form>
-//   );
-// };
+  // Derived state for dialog visibility
+  const isEditOpen = !!editingApiKeyId;
+  const isDeleteOpen = !!deletingApiKey;
 
-// // --- Main API Auth Page Component ---
-// export default function ApiAuthPage() {
-//   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  // Fetch API Key list data
+  const {
+    data: apiKeys = [], // Default to empty array
+    isLoading,
+    error,
+    isError,
+    refetch,
+  } = useQuery<ApiAuthToken[], Error>({
+    queryKey: ["apiKeys"], // Use plural for the list
+    queryFn: () => apiService.apiAuthTokens.list(), // Use the correct service function
+    refetchOnWindowFocus: false,
+    // Add placeholderData or initialData if desired
+    // placeholderData: [],
+  });
 
-//   const {
-//     data: apiTokens,
-//     isLoading,
-//     error,
-//     isError,
-//   } = useQuery<ApiAuthToken[], Error>({ // Add explicit types
-//     queryKey: ["apiAuth"],
-//     queryFn: apiService.getApiAuthTokens,
-//     staleTime: 1000 * 60 * 2, // 2 minutes
-//   });
+  // --- Action Handlers (Dialogs) ---
+  const handleEdit = (apiKeyId: string) => setEditingApiKeyId(apiKeyId);
+  const handleDelete = (apiKeyId: string, apiKeyTitle: string) => setDeletingApiKey({ id: apiKeyId, title: apiKeyTitle });
 
-//   const formatDate = (dateString: string | null) => {
-//     if (!dateString) return "N/A";
-//     try {
-//       return new Date(dateString).toLocaleString();
-//     } catch (e) {
-//       return "Invalid Date";
-//     }
-//   };
+  // --- Render Logic ---
+  if (isError) {
+    // Error toast is likely already shown by apiService.handleApiError via React Query's default onError
+    console.error("Error fetching API keys:", error);
+    return (
+      <div className="container mx-auto py-10 px-4 sm:px-6 lg:px-8">
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Error Fetching API Keys</AlertTitle>
+          <AlertDescription>
+            Could not load API key data. Please try again later.
+            <div className="mt-4">
+              <Button onClick={() => refetch()} variant="secondary"> Try Again </Button>
+            </div>
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
 
-//   // --- Render Logic ---
-//   const renderContent = () => {
-//     if (isLoading) {
-//       return (
-//         <div className="flex justify-center items-center h-64">
-//           <LoadingSpinner />
-//         </div>
-//       );
-//     }
+  return (
+    <div className="container mx-auto py-10 px-4 sm:px-6 lg:px-8">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+        <h1 className="text-3xl font-bold tracking-tight">Manage API Keys</h1>
+        <div className="flex gap-2 items-center">
+          {/* Create Dialog Trigger is inside the CreateApiKeyDialog component */}
+          <CreateApiKeyDialog
+            isOpen={isCreateOpen}
+            onOpenChange={setIsCreateOpen}
+            // onSuccess={() => refetch()} // Refresh handled by invalidateQueries in form
+          />
+        </div>
+      </div>
 
-//     if (isError) {
-//       return (
-//         <Alert variant="destructive" className="mt-4">
-//           <ExclamationTriangleIcon className="h-4 w-4" />
-//           <AlertTitle>Error Fetching API Tokens</AlertTitle>
-//           <AlertDescription>
-//             {error?.message || "Could not load API token data."}
-//           </AlertDescription>
-//         </Alert>
-//       );
-//     }
+      {/* Show loading spinner overlaying the content area */}
+      {isLoading && !apiKeys.length ? ( // Show loader only on initial load
+         <div className="flex justify-center items-center h-64">
+            <LoadingSpinner />
+         </div>
+      ) : (
+        // Render the list (pass isLoading for internal caption handling)
+        <ApiKeyList
+          apiKeys={apiKeys}
+          isLoading={isLoading} // Pass loading state for table caption/overlay
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+        />
+      )}
 
-//     return (
-//       <div className="rounded-md border mt-4">
-//         <Table>
-//           <TableCaption>
-//             {(!apiTokens || apiTokens.length === 0) && "No API tokens found."}
-//           </TableCaption>
-//           <TableHeader>
-//             <TableRow>
-//               <TableHead>Title</TableHead>
-//               <TableHead>Description</TableHead>
-//               <TableHead>Token Prefix</TableHead>
-//               <TableHead>IoT Devices</TableHead>
-//               <TableHead>Last Accessed</TableHead>
-//               <TableHead>Created At</TableHead>
-//               {/* Add Actions column if needed (e.g., Revoke) */}
-//             </TableRow>
-//           </TableHeader>
-//           <TableBody>
-//             {apiTokens && apiTokens.length > 0 ? (
-//               apiTokens.map((token) => (
-//                 <TableRow key={token.id}>
-//                   <TableCell className="font-medium">{token.title}</TableCell>
-//                   <TableCell>{token.description || "-"}</TableCell>
-//                   <TableCell>
-//                     <code>{token.token_prefix}...</code> {/* Display prefix only */}
-//                   </TableCell>
-//                   <TableCell className="text-center">{token.iot_devices_count}</TableCell>
-//                   <TableCell>{formatDate(token.last_accessed_at)}</TableCell>
-//                   <TableCell>{formatDate(token.created_at)}</TableCell>
-//                   {/* Add TableCell for actions */}
-//                 </TableRow>
-//               ))
-//             ) : (
-//               <TableRow>
-//                 <TableCell colSpan={6} className="h-24 text-center">
-//                   No API tokens created yet.
-//                 </TableCell>
-//               </TableRow>
-//             )}
-//           </TableBody>
-//         </Table>
-//       </div>
-//     );
-//   };
-
-
-//   return (
-//     <div className="container mx-auto py-10">
-//       <div className="flex justify-between items-center mb-6">
-//         <h1 className="text-3xl font-bold">API Auth Tokens</h1>
-//         <Dialog
-//           open={isCreateDialogOpen}
-//           onOpenChange={setIsCreateDialogOpen}
-//         >
-//           <DialogTrigger asChild>
-//             <Button>
-//               <PlusCircledIcon className="mr-2 h-4 w-4" /> Add Token
-//             </Button>
-//           </DialogTrigger>
-//           <DialogContent className="sm:max-w-[500px]">
-//             <DialogHeader>
-//               <DialogTitle>Create New API Auth Token</DialogTitle>
-//               <DialogDescription>
-//                 Generate a new token for authenticating external applications or devices.
-//               </DialogDescription>
-//             </DialogHeader>
-//             <CreateApiAuthTokenForm onSuccess={() => setIsCreateDialogOpen(false)} />
-//           </DialogContent>
-//         </Dialog>
-//       </div>
-
-//       {renderContent()}
-
-//     </div>
-//   );
-// }
+      {/* Render Modals/Dialogs */}
+      <EditApiKeyDialog
+        apiKeyId={editingApiKeyId}
+        isOpen={isEditOpen}
+        onOpenChange={(open) => !open && setEditingApiKeyId(null)}
+        // onSuccess={() => refetch()} // Refresh handled by invalidateQueries in form
+      />
+      <DeleteApiKeyDialog
+        apiKeyId={deletingApiKey?.id ?? null}
+        apiKeyTitle={deletingApiKey?.title ?? null}
+        isOpen={isDeleteOpen}
+        onOpenChange={(open) => !open && setDeletingApiKey(null)}
+        // onSuccess={() => refetch()} // Refresh handled by invalidateQueries in mutation
+      />
+    </div>
+  );
+}

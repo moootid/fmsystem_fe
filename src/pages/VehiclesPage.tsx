@@ -128,18 +128,18 @@ export default function VehiclesPage() {
       <ViewVehicleDialog
         vehicleId={viewingVehicleId}
         isOpen={isViewOpen}
-        onOpenChange={(open) => !open && setViewingVehicleId(null)}
+        onOpenChange={(open:any) => !open && setViewingVehicleId(null)}
       />
       <EditVehicleDialog
         vehicleId={editingVehicleId}
         isOpen={isEditOpen}
-        onOpenChange={(open) => !open && setEditingVehicleId(null)}
+        onOpenChange={(open:any) => !open && setEditingVehicleId(null)}
       />
       <DeleteVehicleDialog
         vehicleId={deletingVehicle?.id ?? null}
         vehicleCode={deletingVehicle?.code ?? null}
         isOpen={isDeleteOpen}
-        onOpenChange={(open) => !open && setDeletingVehicle(null)}
+        onOpenChange={(open:any) => !open && setDeletingVehicle(null)}
       />
     </div>
   );
