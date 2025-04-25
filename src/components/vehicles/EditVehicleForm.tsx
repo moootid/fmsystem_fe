@@ -15,12 +15,6 @@ import {
   ApiValidationError,
 } from "@/types/vehicle"; // Make sure ApiValidationError is also exported from vehicle types or api types
 
-interface EditVehicleFormProps {
-  vehicle: Vehicle; // Pre-filled vehicle data
-  onSuccess: () => void;
-  onCancel: () => void;
-}
-
 // --- Helper to get error message --- (Can be shared, move to utils?)
 const getFieldError = (
   errors: ApiValidationError | null,
@@ -32,13 +26,14 @@ const getFieldError = (
 
 // --- Remove the inline UpdateVehiclePayload definition ---
 
-export const EditVehicleForm: React.FC<EditVehicleFormProps> = ({
+export const EditVehicleForm = ({
   vehicle,
   onSuccess,
   onCancel,
-}) => {
+}: any) => {
   const queryClient = useQueryClient();
 
+  console.log("EditVehicleForm vehicle:", vehicle);
   // Initialize state with existing vehicle data
   const [code, setCode] = useState(vehicle.code);
   const [plate, setPlate] = useState(vehicle.plate);
@@ -55,17 +50,16 @@ export const EditVehicleForm: React.FC<EditVehicleFormProps> = ({
     useState<ApiValidationError | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  // Reset form if the vehicle prop changes
   useEffect(() => {
-    setCode(vehicle.code);
-    setPlate(vehicle.plate);
-    setVin(vehicle.vin ?? "");
-    setManufacturer(vehicle.manufacturer ?? "");
-    setModel(vehicle.model ?? "");
-    setYear(vehicle.year ?? "");
-    setStatus(vehicle.status ?? "");
-    setType(vehicle.type ?? "");
-    setColor(vehicle.color ?? "");
+    setCode(vehicle?.data?.code);
+    setPlate(vehicle?.data?.plate);
+    setVin(vehicle?.data?.vin ?? "");
+    setManufacturer(vehicle?.data?.manufacturer ?? "");
+    setModel(vehicle?.data?.model ?? "");
+    setYear(vehicle?.data?.make_year ?? "");
+    setStatus(vehicle?.data?.status ?? "");
+    setType(vehicle?.data?.type ?? "");
+    setColor(vehicle?.data?.color ?? "");
     setValidationErrors(null);
     setSubmitError(null);
   }, [vehicle]);
@@ -73,13 +67,13 @@ export const EditVehicleForm: React.FC<EditVehicleFormProps> = ({
   const mutation = useMutation<Vehicle, Error, UpdateVehiclePayload>({
     // --- Corrected mutationFn ---
     // The apiService function already returns Promise<Vehicle>
-    mutationFn: (payload) => apiService.vehicles.update(vehicle.id, payload),
+    mutationFn: (payload) => apiService.vehicles.update(vehicle.data.id, payload),
     // --- End Correction ---
     onSuccess: (data) => {
       // Invalidate queries to refetch data
       // Using queryKey array directly is often preferred
       queryClient.invalidateQueries({ queryKey: ["vehicles"] });
-      queryClient.invalidateQueries({ queryKey: ["vehicle", vehicle.id] });
+      queryClient.invalidateQueries({ queryKey: ["vehicle", vehicle.data.id] });
 
       toast.success("Vehicle Updated", {
         description: `Vehicle ${data.code} (${data.plate}) updated successfully.`,
@@ -127,15 +121,15 @@ export const EditVehicleForm: React.FC<EditVehicleFormProps> = ({
 
     // Construct the payload using the imported UpdateVehiclePayload type implicitly
     // Ensure values match the expected type (string | null | undefined for optional fields)
-    const payload: UpdateVehiclePayload = {
+    const payload = {
       code,
       plate,
       // Send null if the field is empty and the API expects null for clearing optional string fields
       // Otherwise, send undefined to omit the field if the API ignores missing fields
-      vin: vin || undefined, // Or vin || null if API prefers null
+      vin: vin || undefined,
       manufacturer: manufacturer || undefined,
       model: model || undefined,
-      year: year === "" ? undefined : year, // Keep sending undefined for empty number
+      make_year: year === "" ? undefined : year, // Keep sending undefined for empty number
       status: status || undefined,
       type: type || undefined,
       color: color || undefined,
@@ -160,16 +154,16 @@ export const EditVehicleForm: React.FC<EditVehicleFormProps> = ({
         <Label htmlFor="edit-code" className="text-right pt-2"> Code* </Label>
         <div className="col-span-3">
           <Input id="edit-code" value={code} onChange={(e) => setCode(e.target.value)} disabled={mutation.isPending} required aria-required="true" className={getFieldError(validationErrors, "code") ? "border-destructive" : ""} />
-          {getFieldError(validationErrors, "code") && ( <p className="text-sm text-destructive mt-1"> {getFieldError(validationErrors, "code")} </p> )}
+          {getFieldError(validationErrors, "code") && (<p className="text-sm text-destructive mt-1"> {getFieldError(validationErrors, "code")} </p>)}
         </div>
       </div>
 
       {/* Plate */}
-       <div className="grid grid-cols-4 items-start gap-4">
+      <div className="grid grid-cols-4 items-start gap-4">
         <Label htmlFor="edit-plate" className="text-right pt-2"> Plate* </Label>
         <div className="col-span-3">
           <Input id="edit-plate" value={plate} onChange={(e) => setPlate(e.target.value)} disabled={mutation.isPending} required aria-required="true" className={getFieldError(validationErrors, "plate") ? "border-destructive" : ""} />
-          {getFieldError(validationErrors, "plate") && ( <p className="text-sm text-destructive mt-1"> {getFieldError(validationErrors, "plate")} </p> )}
+          {getFieldError(validationErrors, "plate") && (<p className="text-sm text-destructive mt-1"> {getFieldError(validationErrors, "plate")} </p>)}
         </div>
       </div>
 
@@ -178,16 +172,16 @@ export const EditVehicleForm: React.FC<EditVehicleFormProps> = ({
         <Label htmlFor="edit-vin" className="text-right pt-2"> VIN* </Label>
         <div className="col-span-3">
           <Input id="edit-vin" value={vin} onChange={(e) => setVin(e.target.value)} disabled={mutation.isPending} required aria-required="true" className={getFieldError(validationErrors, "vin") ? "border-destructive" : ""} />
-          {getFieldError(validationErrors, "vin") && ( <p className="text-sm text-destructive mt-1"> {getFieldError(validationErrors, "vin")} </p> )}
+          {getFieldError(validationErrors, "vin") && (<p className="text-sm text-destructive mt-1"> {getFieldError(validationErrors, "vin")} </p>)}
         </div>
       </div>
 
-       {/* Manufacturer */}
+      {/* Manufacturer */}
       <div className="grid grid-cols-4 items-start gap-4">
         <Label htmlFor="edit-manufacturer" className="text-right pt-2"> Manufacturer </Label>
         <div className="col-span-3">
           <Input id="edit-manufacturer" value={manufacturer} onChange={(e) => setManufacturer(e.target.value)} disabled={mutation.isPending} className={getFieldError(validationErrors, "manufacturer") ? "border-destructive" : ""} />
-          {getFieldError(validationErrors, "manufacturer") && ( <p className="text-sm text-destructive mt-1"> {getFieldError(validationErrors, "manufacturer")} </p> )}
+          {getFieldError(validationErrors, "manufacturer") && (<p className="text-sm text-destructive mt-1"> {getFieldError(validationErrors, "manufacturer")} </p>)}
         </div>
       </div>
 
@@ -196,7 +190,7 @@ export const EditVehicleForm: React.FC<EditVehicleFormProps> = ({
         <Label htmlFor="edit-model" className="text-right pt-2"> Model </Label>
         <div className="col-span-3">
           <Input id="edit-model" value={model} onChange={(e) => setModel(e.target.value)} disabled={mutation.isPending} className={getFieldError(validationErrors, "model") ? "border-destructive" : ""} />
-          {getFieldError(validationErrors, "model") && ( <p className="text-sm text-destructive mt-1"> {getFieldError(validationErrors, "model")} </p> )}
+          {getFieldError(validationErrors, "model") && (<p className="text-sm text-destructive mt-1"> {getFieldError(validationErrors, "model")} </p>)}
         </div>
       </div>
 
@@ -204,8 +198,8 @@ export const EditVehicleForm: React.FC<EditVehicleFormProps> = ({
       <div className="grid grid-cols-4 items-start gap-4">
         <Label htmlFor="edit-year" className="text-right pt-2"> Year </Label>
         <div className="col-span-3">
-          <Input id="edit-year" type="number" value={year} onChange={(e) => setYear(e.target.value === "" ? "" : parseInt(e.target.value, 10))} placeholder="e.g., 2023" min="1900" max={new Date().getFullYear() + 1} disabled={mutation.isPending} className={getFieldError(validationErrors, "year") ? "border-destructive" : ""} />
-          {getFieldError(validationErrors, "year") && ( <p className="text-sm text-destructive mt-1"> {getFieldError(validationErrors, "year")} </p> )}
+          <Input id="edit-year" type="number" value={year} onChange={(e) => setYear(e.target.value === "" ? "" : parseInt(e.target.value, 10))} placeholder="e.g., 2023" min="1900" max={new Date().getFullYear() + 1} disabled={mutation.isPending} className={getFieldError(validationErrors, "make_year") ? "border-destructive" : ""} />
+          {getFieldError(validationErrors, "make_year") && (<p className="text-sm text-destructive mt-1"> {getFieldError(validationErrors, "make_year")} </p>)}
         </div>
       </div>
 
@@ -214,7 +208,7 @@ export const EditVehicleForm: React.FC<EditVehicleFormProps> = ({
         <Label htmlFor="edit-status" className="text-right pt-2"> Status </Label>
         <div className="col-span-3">
           <Input id="edit-status" value={status} onChange={(e) => setStatus(e.target.value)} placeholder="e.g., Active, Maintenance" disabled={mutation.isPending} className={getFieldError(validationErrors, "status") ? "border-destructive" : ""} />
-          {getFieldError(validationErrors, "status") && ( <p className="text-sm text-destructive mt-1"> {getFieldError(validationErrors, "status")} </p> )}
+          {getFieldError(validationErrors, "status") && (<p className="text-sm text-destructive mt-1"> {getFieldError(validationErrors, "status")} </p>)}
         </div>
       </div>
 
@@ -223,7 +217,7 @@ export const EditVehicleForm: React.FC<EditVehicleFormProps> = ({
         <Label htmlFor="edit-type" className="text-right pt-2"> Type </Label>
         <div className="col-span-3">
           <Input id="edit-type" value={type} onChange={(e) => setType(e.target.value)} placeholder="e.g., Sedan, Truck" disabled={mutation.isPending} className={getFieldError(validationErrors, "type") ? "border-destructive" : ""} />
-          {getFieldError(validationErrors, "type") && ( <p className="text-sm text-destructive mt-1"> {getFieldError(validationErrors, "type")} </p> )}
+          {getFieldError(validationErrors, "type") && (<p className="text-sm text-destructive mt-1"> {getFieldError(validationErrors, "type")} </p>)}
         </div>
       </div>
 
@@ -232,7 +226,7 @@ export const EditVehicleForm: React.FC<EditVehicleFormProps> = ({
         <Label htmlFor="edit-color" className="text-right pt-2"> Color </Label>
         <div className="col-span-3">
           <Input id="edit-color" value={color} onChange={(e) => setColor(e.target.value)} placeholder="e.g., Red, Blue" disabled={mutation.isPending} className={getFieldError(validationErrors, "color") ? "border-destructive" : ""} />
-          {getFieldError(validationErrors, "color") && ( <p className="text-sm text-destructive mt-1"> {getFieldError(validationErrors, "color")} </p> )}
+          {getFieldError(validationErrors, "color") && (<p className="text-sm text-destructive mt-1"> {getFieldError(validationErrors, "color")} </p>)}
         </div>
       </div>
       {/* --- End Form Fields --- */}

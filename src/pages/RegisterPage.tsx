@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 // import { useToast } from "@/components/ui/use-toast";
 import apiService from "../services/apiService"; // Import handleApiError
+import { LoaderIcon } from "lucide-react";
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -27,13 +28,9 @@ export default function LoginPage() {
     e.preventDefault();
     setIsLoading(true);
     try {
-      await login({ email, password });
-      navigate("/"); // Redirect to dashboard on successful login
+      await apiService.auth.register({ email, password });
     } catch (error) {
-    //   apiService.handleApiError(error, toast); // Use the centralized error handler
         console.error("Login failed:", error);
-        // Optionally show a toast or alert here
-        // toast({ title: "Login Failed", description: "Invalid credentials." });
     } finally {
       setIsLoading(false);
     }
@@ -43,9 +40,11 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-gray-100 dark:bg-gray-900">
       <Card className="w-full max-w-sm">
         <CardHeader>
-          <CardTitle className="text-2xl">Login</CardTitle>
+          <CardTitle className="text-2xl">
+            Register
+          </CardTitle>
           <CardDescription>
-            Enter your email below to login to your account.
+            Enter your email below to create an account.
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
@@ -81,10 +80,11 @@ export default function LoginPage() {
             <Button
               variant="link"
               className="mt-4"
-              onClick={() => navigate("/register")}
+              onClick={() => navigate("/login")}
+              type="button"
               disabled={isLoading}
             >
-              Don't have an account? Register
+              Already have an account? Login
             </Button>
           </CardFooter>
         </form>

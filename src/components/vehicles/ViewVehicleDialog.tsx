@@ -32,17 +32,17 @@ const DetailItem = ({ label, value }: { label: string; value: React.ReactNode })
 );
 
 
-export const ViewVehicleDialog: React.FC<ViewVehicleDialogProps> = ({
+export const ViewVehicleDialog = ({
     vehicleId,
     isOpen,
     onOpenChange,
-}) => {
+}:any) => {
     const {
         data: vehicle,
         isLoading,
         isError,
         error,
-    } = useQuery<Vehicle, Error>({
+    } = useQuery({
         queryKey: ["vehicle", vehicleId],
         queryFn: () =>
             apiService.vehicles.getById(vehicleId!).then((res: any) => res.data),
@@ -98,7 +98,7 @@ export const ViewVehicleDialog: React.FC<ViewVehicleDialogProps> = ({
                             <DetailItem label="VIN" value={vehicle.vin} />
                             <DetailItem label="Manufacturer" value={vehicle.manufacturer} />
                             <DetailItem label="Model" value={vehicle.model} />
-                            <DetailItem label="Year" value={vehicle.year} />
+                            <DetailItem label="Year" value={vehicle.make_year} />
                             <DetailItem label="Status" value={vehicle.status} />
                             <DetailItem label="Type" value={vehicle.type} />
                             <DetailItem label="Color" value={vehicle.color} />

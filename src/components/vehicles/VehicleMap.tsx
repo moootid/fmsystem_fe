@@ -62,10 +62,9 @@ interface MapControllerProps {
     initialBounds: LatLngBounds | null;
 }
 
-const MapController: React.FC<MapControllerProps> = ({ vehicles, currentIndex, initialBounds }) => {
+const MapController = ({ vehicles, currentIndex, initialBounds }:any) => {
     const map = useMap();
     const isInitialLoad = useRef(true);
-
     useLayoutEffect(() => {
         if (isInitialLoad.current && initialBounds && initialBounds.isValid()) {
             map.fitBounds(initialBounds, { padding: [50, 50], maxZoom: 16 });
@@ -74,8 +73,8 @@ const MapController: React.FC<MapControllerProps> = ({ vehicles, currentIndex, i
     }, [map, initialBounds]);
 
     useLayoutEffect(() => {
-        if (!isInitialLoad.current && currentIndex !== null && vehicles[currentIndex]) {
-            const vehicle = vehicles[currentIndex];
+        if (!isInitialLoad.current && currentIndex !== null && vehicles.data[currentIndex]) {
+            const vehicle = vehicles.data[currentIndex];
             const lat = parseFloat(vehicle.latest_telemetry.lat);
             const long = parseFloat(vehicle.latest_telemetry.long);
             if (!isNaN(lat) && !isNaN(long)) {
@@ -89,9 +88,10 @@ const MapController: React.FC<MapControllerProps> = ({ vehicles, currentIndex, i
 
 
 // Main VehicleMap Component
-export const VehicleMap: React.FC<VehicleMapProps> = ({ vehicles }) => {
-  const vehiclesWithLocation = vehicles.filter(
-    (v): v is VehicleWithValidCoords =>
+export const VehicleMap = ({ vehicles }: any) => {
+  console.log("VehicleMap vehicles:", vehicles);
+  const vehiclesWithLocation = vehicles.data.filter(
+    (v:any): v is VehicleWithValidCoords =>
       v.latest_telemetry != null &&
       isValidCoordinateString(v.latest_telemetry.lat) &&
       isValidCoordinateString(v.latest_telemetry.long)
@@ -106,7 +106,7 @@ export const VehicleMap: React.FC<VehicleMapProps> = ({ vehicles }) => {
   let initialBounds: LatLngBounds | null = null;
   if (vehiclesWithLocation.length > 0) {
     const latLngs: LatLngExpression[] = [];
-    vehiclesWithLocation.forEach(v => {
+    vehiclesWithLocation.forEach((v:any) => {
         const lat = parseFloat(v.latest_telemetry.lat);
         const long = parseFloat(v.latest_telemetry.long);
         if (!isNaN(lat) && !isNaN(long)) latLngs.push([lat, long]);
@@ -183,7 +183,7 @@ export const VehicleMap: React.FC<VehicleMapProps> = ({ vehicles }) => {
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
-        {vehiclesWithLocation.map((vehicle, index) => {
+        {vehiclesWithLocation.map((vehicle:any, index:any) => {
           const lat = parseFloat(vehicle.latest_telemetry.lat);
           const long = parseFloat(vehicle.latest_telemetry.long);        
           if (isNaN(lat) || isNaN(long)) return null;

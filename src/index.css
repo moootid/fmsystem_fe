@@ -1,5 +1,7 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@import "ag-grid-community/styles/ag-grid.css";
+@import "ag-grid-community/styles/ag-theme-quartz.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -41,6 +43,16 @@
   --color-sidebar-ring: var(--sidebar-ring);
 }
 
+/* Define the highlight style */
+.ag-theme-quartz .ag-row-highlight {
+  background-color: #ffff99 !important; /* Light yellow background */
+  transition: background-color 0.5s ease-out !important; /* Smooth transition */
+}
+
+/* Optional: Style for when highlight is removed */
+.ag-theme-quartz .ag-row {
+  transition: background-color 0.5s ease-out !important;
+}
 :root {
   --radius: 0.625rem;
   --background: oklch(1 0 0);

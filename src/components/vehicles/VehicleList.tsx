@@ -21,15 +21,14 @@ interface VehicleListProps {
   onDelete: (vehicleId: string, vehicleCode: string) => void; // Pass code for confirmation
 }
 
-export const VehicleList: React.FC<VehicleListProps> = ({
+export const VehicleList= ({
   vehicles,
   isLoading,
   onView,
   onEdit,
   onDelete,
-}) => {
-  const vehicleList = vehicles || [];
-
+}:any) => {
+  const vehicleList = vehicles.data || [];
   return (
     <div className="rounded-md border">
       <div className="relative w-full overflow-auto">
@@ -64,7 +63,7 @@ export const VehicleList: React.FC<VehicleListProps> = ({
                 </TableCell>
               </TableRow>
             ) : vehicleList.length > 0 ? (
-              vehicleList.map((vehicle) => (
+              vehicleList.map((vehicle:any) => (
                 <TableRow key={vehicle.id} className="hover:bg-muted/50">
                   <TableCell className="font-medium">{vehicle.code}</TableCell>
                   <TableCell>{vehicle.plate}</TableCell>

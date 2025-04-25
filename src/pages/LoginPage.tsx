@@ -78,6 +78,7 @@ export default function LoginPage() {
             </Button>
             <Button
               variant="link"
+              type="button"
               className="mt-4"
               onClick={() => navigate("/register")}
               disabled={isLoading}

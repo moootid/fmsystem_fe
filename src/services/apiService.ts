@@ -11,7 +11,7 @@ import type { IotDevice, CreateIotDevicePayload, UpdateIotDevicePayload } from "
 
 // Centralized API Client Configuration
 const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || "https://fmsystem.mokh32.com/api", // Use env variable
+  baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:4000/api", // Use env variable
   headers: {
     "Content-Type": "application/json",
     // CORS headers are typically set by the *server*, not the client request
@@ -126,6 +126,7 @@ const vehicleApi = {
   },
 
   update: async (id: string, data: UpdateVehiclePayload): Promise<Vehicle> => {
+    console.log("Updating vehicle with ID:", id, "and data:", data);
     const response = await apiClient.put<Vehicle>(`/vehicles/${id}`, data);
     return response.data;
   },
