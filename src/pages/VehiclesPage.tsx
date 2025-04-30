@@ -13,7 +13,8 @@ import { CreateVehicleDialog } from "@/components/vehicles/CreateVehicleDialog";
 import { ViewVehicleDialog } from "@/components/vehicles/ViewVehicleDialog";
 import { EditVehicleDialog } from "@/components/vehicles/EditVehicleDialog";
 import { DeleteVehicleDialog } from "@/components/vehicles/DeleteVehicleDialog";
-import { VehicleMap } from "@/components/vehicles/VehicleMap"; // Import the new map component
+import { useNavigate } from "react-router";
+// import { VehicleMap } from "@/components/vehicles/VehicleMap"; // Import the new map component
 
 // Import types and services
 import apiService from "@/services/apiService";
@@ -27,11 +28,11 @@ export default function VehiclesPage() {
   const [editingVehicleId, setEditingVehicleId] = useState<string | null>(null);
   const [deletingVehicle, setDeletingVehicle] = useState<{ id: string; code: string } | null>(null);
 
-  const [viewMode, setViewMode] = useState<'table' | 'map'>('table');
+  // const [viewMode, setViewMode] = useState<'table' | 'map'>('table');
   const isViewOpen = !!viewingVehicleId;
   const isEditOpen = !!editingVehicleId;
   const isDeleteOpen = !!deletingVehicle;
-
+  const navigate = useNavigate();
   // Fetch vehicle list data
   const {
     data: vehicles,
@@ -76,24 +77,15 @@ export default function VehiclesPage() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
         <h1 className="text-3xl font-bold tracking-tight">Manage Vehicles</h1>
         <div className="flex gap-2 items-center">
-           {/* --- View Mode Toggle Buttons --- */}
-           <Button
-             variant={viewMode === 'table' ? 'secondary' : 'outline'}
-             size="icon"
-             onClick={() => setViewMode('table')}
-             aria-label="Switch to table view"
-           >
-             <List className="h-4 w-4" />
-           </Button>
-           <Button
-             variant={viewMode === 'map' ? 'secondary' : 'outline'}
-             size="icon"
-             onClick={() => setViewMode('map')}
-             aria-label="Switch to map view"
-           >
-             <MapIcon className="h-4 w-4" />
-           </Button>
-           {/* --- End View Mode Toggle Buttons --- */}
+          <Button
+            variant={'secondary'}
+            size="icon"
+            onClick={() => navigate('/vehicles/map')}
+            aria-label="Switch to map view"
+          >
+            <MapIcon className="h-4 w-4" />
+          </Button>
+          {/* --- End View Mode Toggle Buttons --- */}
 
           {/* Create Dialog Trigger */}
           <CreateVehicleDialog
@@ -105,13 +97,13 @@ export default function VehiclesPage() {
 
       {/* Show loading spinner overlaying the content area */}
       {isLoading && (
-         <div className="flex justify-center items-center h-64">
-            <LoadingSpinner />
-         </div>
+        <div className="flex justify-center items-center h-64">
+          <LoadingSpinner />
+        </div>
       )}
 
       {/* Conditionally render Table or Map View (only when not loading) */}
-      {!isLoading && viewMode === 'table' && (
+      {!isLoading && (
         <VehicleList
           vehicles={vehicles || []}
           isLoading={isLoading}
@@ -120,26 +112,23 @@ export default function VehiclesPage() {
           onDelete={handleDelete}
         />
       )}
-      {!isLoading && viewMode === 'map' && (
-        <VehicleMap vehicles={vehicles || []} />
-      )}
 
       {/* Render Modals/Dialogs (remain unchanged) */}
       <ViewVehicleDialog
         vehicleId={viewingVehicleId}
         isOpen={isViewOpen}
-        onOpenChange={(open) => !open && setViewingVehicleId(null)}
+        onOpenChange={(open: any) => !open && setViewingVehicleId(null)}
       />
       <EditVehicleDialog
         vehicleId={editingVehicleId}
         isOpen={isEditOpen}
-        onOpenChange={(open) => !open && setEditingVehicleId(null)}
+        onOpenChange={(open: any) => !open && setEditingVehicleId(null)}
       />
       <DeleteVehicleDialog
         vehicleId={deletingVehicle?.id ?? null}
         vehicleCode={deletingVehicle?.code ?? null}
         isOpen={isDeleteOpen}
-        onOpenChange={(open) => !open && setDeletingVehicle(null)}
+        onOpenChange={(open: any) => !open && setDeletingVehicle(null)}
       />
     </div>
   );
