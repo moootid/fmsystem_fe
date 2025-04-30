@@ -21,6 +21,7 @@ import 'leaflet/dist/leaflet.css';
 import VehicleLiveUpdater from "./pages/TestWebsocketPage";
 import ApiAuthPage from "./pages/ApiAuthPage";
 import IotPage from "./pages/IotPage";
+import { VehiclesMapPage } from "./pages/VehiclesMapPage";
 
 // import LoadingSpinner from "@/components/shared/LoadingSpinner"; // Create this component
 
@@ -65,6 +66,7 @@ function App() {
               <Route path="/" element={<DashboardPage />} />
               <Route path="/api-auth" element={<ApiAuthPage />} />
               <Route path="/vehicles" element={<VehiclesPage />} />
+              <Route path="/vehicles/map" element={<VehiclesMapPage />} />
               <Route path="/testing" element={<VehicleLiveUpdater/>} />
               <Route path="/iot" element={<IotPage />} />
               {/* Add other protected routes here */}
