@@ -37,6 +37,12 @@ export const ViewVehicleDialog = ({
     isOpen,
     onOpenChange,
 }:any) => {
+
+    const getVehicle = (id:any) =>{
+        if (!id) return Promise.resolve(null);
+        console.log("Fetching vehicle with ID:", id);
+        return apiService.vehicles.getById(id).then((res:any) => res.data);
+    }
     const {
         data: vehicle,
         isLoading,
@@ -45,7 +51,7 @@ export const ViewVehicleDialog = ({
     } = useQuery({
         queryKey: ["vehicle", vehicleId],
         queryFn: () =>
-            apiService.vehicles.getById(vehicleId!).then((res: any) => res.data),
+            getVehicle(vehicleId),
         enabled: !!vehicleId && isOpen,
         refetchOnWindowFocus: false,
         retry: 1,
