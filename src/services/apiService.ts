@@ -9,6 +9,8 @@ import type { ApiAuthToken, CreateApiAuthTokenPayload } from "@/types/apiAuthTok
 import type { Vehicle, CreateVehiclePayload, UpdateVehiclePayload } from "@/types/vehicle";
 import type { IotDevice, CreateIotDevicePayload, UpdateIotDevicePayload } from "@/types/iotDevice";
 
+
+export const WS_ENDPOINT = "ws://localhost:4000/socket"; // Phoenix WebSocket URL
 // Centralized API Client Configuration
 const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:4000/api", // Use env variable
