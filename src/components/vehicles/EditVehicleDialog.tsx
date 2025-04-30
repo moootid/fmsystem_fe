@@ -28,6 +28,12 @@ export const EditVehicleDialog: React.FC<EditVehicleDialogProps> = ({
     onOpenChange,
     onSuccess,
 }) => {
+
+    const getVehicle = (id:any) =>{
+        if (!id) return Promise.resolve(null);
+        console.log("Fetching vehicle with ID:", id);
+        return apiService.vehicles.getById(id).then((res:any) => res.data);
+    }
     const {
         data: vehicleData,
         isLoading,
@@ -35,7 +41,7 @@ export const EditVehicleDialog: React.FC<EditVehicleDialogProps> = ({
         error,
     } = useQuery<Vehicle, Error>({
         queryKey: ["vehicle", vehicleId],
-        queryFn: () => apiService.vehicles.getById(vehicleId!),
+        queryFn: () => getVehicle(vehicleId),
         refetchOnWindowFocus: false,
         retry: 1,
     });
