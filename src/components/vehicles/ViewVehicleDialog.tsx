@@ -108,10 +108,11 @@ export const ViewVehicleDialog = ({
                             <DetailItem label="Status" value={vehicle.status} />
                             <DetailItem label="Type" value={vehicle.type} />
                             <DetailItem label="Color" value={vehicle.color} />
-                            <DetailItem label="IoT Devices" value={vehicle.iot_devices_count} />
+                            <DetailItem label="Description" value={vehicle.description} />
+                            <DetailItem label="IoT Device" value={vehicle.iot_device?.id} />
                             <DetailItem label="Last Latitude" value={vehicle.latest_telemetry?.lat} />
                             <DetailItem label="Last Longitude" value={vehicle.latest_telemetry?.long} />
-                            <DetailItem label="Last Telemetry" value={formatDateTime(vehicle.latest_telemetry?.timestamp)} />
+                            <DetailItem label="Last Telemetry" value={formatDateTime(vehicle.latest_telemetry?.inserted_at)} />
                         </dl>
                     )}
                 </div>

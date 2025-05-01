@@ -28,7 +28,8 @@ export const VehicleList= ({
   onEdit,
   onDelete,
 }:any) => {
-  const vehicleList = vehicles.data || [];
+
+  const vehicleList = vehicles.data || vehicles || [];
   return (
     <div className="rounded-md border">
       <div className="relative w-full overflow-auto">
