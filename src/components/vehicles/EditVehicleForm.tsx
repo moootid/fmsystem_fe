@@ -38,28 +38,30 @@ export const EditVehicleForm = ({
   const [code, setCode] = useState(vehicle.code);
   const [plate, setPlate] = useState(vehicle.plate);
   // Keep state as string, handle null/undefined during payload creation
-  const [vin, setVin] = useState(vehicle.vin ?? "");
+  const [vin, setVin] = useState(vehicle.vin || "");
   const [manufacturer, setManufacturer] = useState(vehicle.manufacturer ?? "");
   const [model, setModel] = useState(vehicle.model ?? "");
   const [year, setYear] = useState<number | "">(vehicle.year ?? "");
   const [status, setStatus] = useState(vehicle.status ?? "");
   const [type, setType] = useState(vehicle.type ?? "");
   const [color, setColor] = useState(vehicle.color ?? "");
+  const [description, setDescription] = useState(vehicle.description ?? "");
 
   const [validationErrors, setValidationErrors] =
     useState<ApiValidationError | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   useEffect(() => {
-    setCode(vehicle?.data?.code);
-    setPlate(vehicle?.data?.plate);
-    setVin(vehicle?.data?.vin ?? "");
-    setManufacturer(vehicle?.data?.manufacturer ?? "");
-    setModel(vehicle?.data?.model ?? "");
-    setYear(vehicle?.data?.make_year ?? "");
-    setStatus(vehicle?.data?.status ?? "");
-    setType(vehicle?.data?.type ?? "");
-    setColor(vehicle?.data?.color ?? "");
+    setCode(vehicle?.code);
+    setPlate(vehicle?.plate);
+    setVin(vehicle?.vin ?? "");
+    setManufacturer(vehicle?.manufacturer ?? "");
+    setModel(vehicle?.model ?? "");
+    setYear(vehicle?.make_year ?? "");
+    setStatus(vehicle?.status ?? "");
+    setType(vehicle?.type ?? "");
+    setColor(vehicle?.color ?? "");
+    setDescription(vehicle?.description ?? "");
     setValidationErrors(null);
     setSubmitError(null);
   }, [vehicle]);
@@ -67,13 +69,13 @@ export const EditVehicleForm = ({
   const mutation = useMutation<Vehicle, Error, UpdateVehiclePayload>({
     // --- Corrected mutationFn ---
     // The apiService function already returns Promise<Vehicle>
-    mutationFn: (payload) => apiService.vehicles.update(vehicle.data.id, payload),
+    mutationFn: (payload) => apiService.vehicles.update(vehicle.id, payload),
     // --- End Correction ---
     onSuccess: (data) => {
       // Invalidate queries to refetch data
       // Using queryKey array directly is often preferred
       queryClient.invalidateQueries({ queryKey: ["vehicles"] });
-      queryClient.invalidateQueries({ queryKey: ["vehicle", vehicle.data.id] });
+      queryClient.invalidateQueries({ queryKey: ["vehicle", vehicle.id] });
 
       toast.success("Vehicle Updated", {
         description: `Vehicle ${data.code} (${data.plate}) updated successfully.`,
@@ -133,6 +135,7 @@ export const EditVehicleForm = ({
       status: status || undefined,
       type: type || undefined,
       color: color || undefined,
+      description: description || undefined, // Optional field for additional info
     };
 
     mutation.mutate(payload);
@@ -229,6 +232,18 @@ export const EditVehicleForm = ({
           {getFieldError(validationErrors, "color") && (<p className="text-sm text-destructive mt-1"> {getFieldError(validationErrors, "color")} </p>)}
         </div>
       </div>
+
+
+      {/* Description */}
+      <div className="grid grid-cols-4 items-start gap-4">
+        <Label htmlFor="edit-description" className="text-right pt-2"> Description </Label>
+        <div className="col-span-3">
+          <Input id="edit-description" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="e.g., Additional vehicle information" disabled={mutation.isPending} className={getFieldError(validationErrors, "description") ? "border-destructive" : ""} />
+          {getFieldError(validationErrors, "description") && (<p className="text-sm text-destructive mt-1"> {getFieldError(validationErrors, "description")} </p>)}
+        </div>
+      </div>
+
+
       {/* --- End Form Fields --- */}
 
       <DialogFooter className="mt-4">

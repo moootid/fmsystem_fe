@@ -10,11 +10,12 @@ export interface Vehicle {
     vin: string | null;
     manufacturer: string | null;
     model: string | null;
-    year: number | null;
+    make_year: number | null;
     status: string; // Consider using a union type if statuses are fixed: 'Active' | 'Maintenance' | 'Inactive'
     type: string | null;
     color: string | null;
     iot_devices_count: number;
+    description?: string | null; // Optional field for additional info
     latest_telemetry: {
       lat: string | null;
       long: string | null;
@@ -35,10 +36,12 @@ export interface Vehicle {
     vin: string; // Marked as required in the form logic
     manufacturer?: string;
     model?: string;
-    year?: number;
+    make_year?: number;
     status?: string;
     type?: string;
     color?: string;
+    description?: string | null; // Optional field for additional info
+
     // Fields like iot_devices_count and latest_telemetry are usually set by the backend,
     // but included here if your API allows setting them on creation (uncommon).
     // iot_devices_count?: number;
