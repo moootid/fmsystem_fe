@@ -77,7 +77,7 @@ const apiAuthTokenApi = {
   list: async (): Promise<ApiAuthToken[]> => {
     const response = await apiClient.get<ApiAuthToken[]>("/api_auth");
     console.log("res : ",response.data)
-    return response?.data?.data;
+    return response?.data;
   },
 
   create: async (data: CreateApiAuthTokenPayload): Promise<ApiAuthToken> => {
@@ -114,8 +114,8 @@ const apiAuthTokenApi = {
 const vehicleApi = {
   list: async (): Promise<Vehicle[]> => {
     const response = await apiClient.get<Vehicle[]>("/vehicles");
-    console.log(response.data)
-    return response.data;
+    console.log(response?.data)
+    return response?.data;
   },
 
   create: async (data: CreateVehiclePayload): Promise<Vehicle> => {
