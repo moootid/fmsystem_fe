@@ -1,239 +1,127 @@
-// src/pages/ApiAuthPageTest.tsx
-import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import apiService from '@/services/apiService';
-import { ApiAuthToken, CreateApiAuthTokenPayload } from '@/types/apiAuthToken';
+// src/pages/ApiAuthPage.tsx
+import React, { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import LoadingSpinner from "@/components/shared/LoadingSpinner";
+import { AlertCircle } from "lucide-react";
 
-// Helper to display JSON nicely (optional)
-const JsonDisplay = ({ data }: { data: any }) => (
-    <pre style={{ background: '#f4f4f4', border: '1px solid #ddd', padding: '10px', borderRadius: '4px', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
-        <code>{JSON.stringify(data, null, 2)}</code>
-    </pre>
-);
+// Import your new API Auth components
+import { ApiAuthTokenList } from "@/components/apiAuth/ApiAuthTokenList";
+import { CreateApiAuthTokenDialog } from "@/components/apiAuth/CreateApiAuthTokenDialog";
+import { ViewApiAuthTokenDialog } from "@/components/apiAuth/ViewApiAuthTokenDialog";
+import { DeleteApiAuthTokenDialog } from "@/components/apiAuth/DeleteApiAuthTokenDialog";
+import { ShowCreatedTokenDialog } from "@/components/apiAuth/ShowCreatedTokenDialog";
 
-// --- Main Test Page Component ---
-export default function ApiAuthPageTest() {
-    const queryClient = useQueryClient();
+// Import types and services
+import apiService from "@/services/apiService";
+import { ApiAuthToken } from "@/types/apiAuthToken";
 
-    // --- State for Forms ---
-    const [createTitle, setCreateTitle] = useState('');
-    const [createDescription, setCreateDescription] = useState('');
-    const [updateId, setUpdateId] = useState('');
-    const [updateTitle, setUpdateTitle] = useState('');
-    const [updateDescription, setUpdateDescription] = useState('');
-    const [newlyCreatedToken, setNewlyCreatedToken] = useState<any>(null); // To display the created token info
+export default function ApiAuthPage() {
+    // State for controlling dialogs
+    const [isCreateOpen, setIsCreateOpen] = useState(false);
+    const [viewingTokenId, setViewingTokenId] = useState<string | null>(null);
+    const [deletingToken, setDeletingToken] = useState<{ id: string; title: string } | null>(null);
+    const [newlyCreatedTokenData, setNewlyCreatedTokenData] = useState<ApiAuthToken | null>(null);
 
-    // --- Fetch API Keys Query ---
+    const isViewOpen = !!viewingTokenId;
+    const isDeleteOpen = !!deletingToken;
+    const isShowTokenOpen = !!newlyCreatedTokenData;
+
+    // Fetch API Auth Token list data
     const {
-        data: apiKeys = [], // Default to empty array
-        isLoading: isLoadingKeys,
-        isError: isFetchError,
-        error: fetchError,
-        refetch: refetchKeys,
+        data: apiAuthTokens,
+        isLoading,
+        error,
+        isError,
+        refetch,
     } = useQuery<ApiAuthToken[], Error>({
-        queryKey: ['testApiKeys'], // Unique key for this test page
-        queryFn: () => apiService.apiAuthTokens.list(),
+        queryKey: ["apiAuthTokens"], // Query key for API tokens
+        queryFn: () => apiService.apiAuthTokens.list(), // Assuming list returns the array directly or adjust if needed
+        refetchOnWindowFocus: false,
     });
 
-    // --- Create API Key Mutation ---
-    const {
-        mutate: createApiKey,
-        isPending: isCreating,
-        error: createError,
-    } = useMutation<ApiAuthToken, Error, CreateApiAuthTokenPayload>({
-        mutationFn: (payload) => apiService.apiAuthTokens.create(payload),
-        onSuccess: (data) => {
-            console.log('Create Success:', data);
-            alert(`API Key created successfully!`);
-            setNewlyCreatedToken(data); // Store the created token details
-            queryClient.invalidateQueries({ queryKey: ['testApiKeys'] }); // Refetch the list
-            // Clear form
-            setCreateTitle('');
-            setCreateDescription('');
-        },
-        onError: (error) => {
-            console.error('Create Error:', error);
-            alert(`Failed to create API Key: ${error.message}`);
-            setNewlyCreatedToken(null);
-        },
-    });
+    // --- Action Handlers ---
+    const handleView = (tokenId: string) => setViewingTokenId(tokenId);
+    const handleDelete = (tokenId: string, tokenTitle: string) => setDeletingToken({ id: tokenId, title: tokenTitle });
 
-    // // --- Update API Key Mutation ---
-    // const {
-    //     mutate: updateApiKey,
-    //     isPending: isUpdating,
-    //     error: updateError,
-    // } = useMutation<ApiAuthToken, Error, { id: string; payload: UpdateApiAuthTokenPayload }>({
-    //     mutationFn: ({ id, payload }) => apiService.apiAuthTokens.update(id, payload),
-    //     onSuccess: (data) => {
-    //         console.log('Update Success:', data);
-    //         alert(`API Key "${data.title}" (ID: ${data.id}) updated successfully!`);
-    //         queryClient.invalidateQueries({ queryKey: ['testApiKeys'] });
-    //         // Clear form
-    //         setUpdateId('');
-    //         setUpdateTitle('');
-    //         setUpdateDescription('');
-    //     },
-    //     onError: (error) => {
-    //         console.error('Update Error:', error);
-    //         alert(`Failed to update API Key: ${error.message}`);
-    //     },
-    // });
-
-    // --- Delete API Key Mutation ---
-    const {
-        mutate: deleteApiKey,
-        isPending: isDeleting,
-        error: deleteError,
-    } = useMutation<void, Error, string>({ // Takes ID string
-        mutationFn: (id) => apiService.apiAuthTokens.delete(id),
-        onSuccess: (_, deletedId) => { // Context often includes the variable passed to mutate
-            console.log('Delete Success: ID', deletedId);
-            alert(`API Key (ID: ${deletedId}) deleted successfully!`);
-            queryClient.invalidateQueries({ queryKey: ['testApiKeys'] });
-        },
-        onError: (error, deletedId) => {
-            console.error('Delete Error for ID:', deletedId, error);
-            alert(`Failed to delete API Key (ID: ${deletedId}): ${error.message}`);
-        },
-    });
-
-
-    // --- Event Handlers ---
-    const handleCreateSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!createTitle) {
-            alert('Title is required for creating an API Key.');
-            return;
-        }
-        setNewlyCreatedToken(null); // Clear previous created token display
-        createApiKey({
-            title: createTitle,
-            description: createDescription || undefined,
-        });
+    // Special handler for successful creation
+    const handleCreateSuccess = (createdTokenData: ApiAuthToken) => {
+        setIsCreateOpen(false); // Close the creation form dialog
+        setNewlyCreatedTokenData(createdTokenData); // Set data to show the token dialog
     };
 
-    const handleUpdateSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!updateId) {
-            alert('API Key ID is required for updating.');
-            return;
-        }
-        if (!updateTitle && !updateDescription) {
-            alert('Provide at least a Title or Description to update.');
-            return;
-        }
-        // updateApiKey({
-        //     id: updateId,
-        //     payload: {
-        //         // Only include fields if they have a value to prevent accidentally clearing them
-        //         ...(updateTitle && { title: updateTitle }),
-        //         // Send null to clear description if field is empty, otherwise send value
-        //         description: updateDescription || null,
-        //     },
-        // });
+    // Handler to close the "Show Token" dialog
+    const handleShowTokenClose = () => {
+        setNewlyCreatedTokenData(null);
     };
+    // --- End Action Handlers ---
 
-    const handleDeleteClick = (id: string, title: string) => {
-        if (window.confirm(`Are you sure you want to delete the key "${title}" (ID: ${id})?`)) {
-            deleteApiKey(id);
-        }
-    };
+    if (isError) {
+        console.error("Error fetching API keys:", error);
+        return (
+            <div className="container mx-auto py-10 px-4 sm:px-6 lg:px-8">
+                <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertTitle>Error Fetching API Keys</AlertTitle>
+                    <AlertDescription>
+                        Could not load API key data. Please try again later.
+                        <div className="mt-4">
+                            <Button onClick={() => refetch()} variant="secondary"> Try Again </Button>
+                        </div>
+                    </AlertDescription>
+                </Alert>
+            </div>
+        );
+    }
 
-    // --- Render Logic ---
     return (
-        <div style={{ padding: '20px', fontFamily: 'sans-serif' }}>
-            <h1>API Key Backend Test Page</h1>
-            <hr style={{ margin: '20px 0' }} />
+        <div className="container mx-auto py-10 px-4 sm:px-6 lg:px-8">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                <h1 className="text-3xl font-bold tracking-tight">Manage API Keys</h1>
+                <div className="flex gap-2 items-center">
+                    {/* Create Dialog Trigger */}
+                    <CreateApiAuthTokenDialog
+                        isOpen={isCreateOpen}
+                        onOpenChange={setIsCreateOpen}
+                        onSuccess={handleCreateSuccess}
+                    />
+                </div>
+            </div>
 
-            {/* --- CREATE FORM --- */}
-            <section>
-                <h2>Create New API Key</h2>
-                <form onSubmit={handleCreateSubmit} style={{ marginBottom: '10px' }}>
-                    <div>
-                        <label>Title*: </label>
-                        <input
-                            type="text"
-                            value={createTitle}
-                            onChange={(e) => setCreateTitle(e.target.value)}
-                            required
-                            disabled={isCreating}
-                            style={{ marginRight: '10px' }}
-                        />
-                    </div>
-                    <div style={{ marginTop: '5px' }}>
-                        <label>Description: </label>
-                        <input
-                            type="text"
-                            value={createDescription}
-                            onChange={(e) => setCreateDescription(e.target.value)}
-                            disabled={isCreating}
-                            style={{ marginRight: '10px', width: '300px' }}
-                        />
-                    </div>
-                    <button type="submit" disabled={isCreating} style={{ marginTop: '10px' }}>
-                        {isCreating ? 'Creating...' : 'Create Key'}
-                    </button>
-                    {createError && <p style={{ color: 'red' }}>Error creating: {createError.message}</p>}
-                </form>
+            {isLoading && (
+                <div className="flex justify-center items-center h-64">
+                    <LoadingSpinner />
+                </div>
+            )}
 
-                {/* Display Newly Created Token */}
-                {newlyCreatedToken && (
-                    <div style={{ marginTop: '15px', border: '1px solid green', padding: '10px' }}>
-                        <h3>Last Created Key Details (Save the token now!):</h3>
-                        <p><strong>Title:</strong> {newlyCreatedToken.title}</p>
-                        <p><strong>ID:</strong> {newlyCreatedToken.id}</p>
-                        <p><strong>Description:</strong> {newlyCreatedToken.description || 'N/A'}</p>
-                        <p><strong>Token:</strong> <code style={{ background: '#eee', padding: '2px 4px', wordBreak: 'break-all' }}>{newlyCreatedToken.token}</code></p>
-                    </div>
-                )}
-            </section>
+            {!isLoading && (
+                <ApiAuthTokenList
+                    apiAuthTokens={apiAuthTokens || []}
+                    isLoading={isLoading}
+                    onView={handleView}
+                    onDelete={handleDelete}
+                />
+            )}
 
-            <hr style={{ margin: '20px 0' }} />
-
-            {/* --- UPDATE FORM --- */}
-
-
-            <hr style={{ margin: '20px 0' }} />
-
-            {/* --- LIST KEYS --- */}
-            <section>
-                <h2>Existing API Keys</h2>
-                <button onClick={() => refetchKeys()} disabled={isLoadingKeys}>
-                    {isLoadingKeys ? 'Refreshing...' : 'Refresh List'}
-                </button>
-
-                {isLoadingKeys && <p>Loading keys...</p>}
-                {isFetchError && <p style={{ color: 'red' }}>Error fetching keys: {fetchError?.message}</p>}
-
-                {!isLoadingKeys && !isFetchError && apiKeys.length === 0 && <p>No API keys found.</p>}
-
-                {!isLoadingKeys && apiKeys.length > 0 && (
-                    <ul style={{ listStyle: 'none', padding: 0 }}>
-                        {apiKeys.map((key:any) => (
-                            <li key={key.id} style={{ border: '1px solid #ccc', marginBottom: '15px', padding: '10px' }}>
-                                <div><strong>Title:</strong> {key.title}</div>
-                                <div><strong>ID:</strong> {key.id}</div>
-                                <div><strong>Description:</strong> {key.description || 'N/A'}</div>
-                                <div><strong>Token:</strong> {key.token}</div>
-                                <div><strong>Created At:</strong> {new Date(key.inserted_at).toLocaleString()}</div>
-                                <div><strong>Last Accessed:</strong> {key.last_access ? new Date(key.last_access).toLocaleString() : 'Never'}</div>
-                                <button
-                                    onClick={() => handleDeleteClick(key.id, key.title)}
-                                    disabled={isDeleting} // Simple disable during any delete
-                                    style={{ color: 'red', marginLeft: '10px', marginTop: '5px' }}
-                                >
-                                    Delete
-                                </button>
-                                {/* Optional: Display full details */}
-                                {/* <details><summary>Raw Data</summary><JsonDisplay data={key} /></details> */}
-                            </li>
-                        ))}
-                    </ul>
-                )}
-                {/* Display delete error globally for simplicity */}
-                {deleteError && <p style={{ color: 'red' }}>Error deleting: {deleteError.message}</p>}
-            </section>
+            {/* Render Modals/Dialogs */}
+            <ViewApiAuthTokenDialog
+                tokenId={viewingTokenId}
+                isOpen={isViewOpen}
+                onOpenChange={(open) => !open && setViewingTokenId(null)}
+            />
+            <DeleteApiAuthTokenDialog
+                tokenId={deletingToken?.id ?? null}
+                tokenTitle={deletingToken?.title ?? null}
+                isOpen={isDeleteOpen}
+                onOpenChange={(open) => !open && setDeletingToken(null)}
+            />
+            {/* Special Dialog to show the newly created token */}
+            <ShowCreatedTokenDialog
+                 tokenData={newlyCreatedTokenData}
+                 isOpen={isShowTokenOpen}
+                 onOpenChange={(open) => !open && handleShowTokenClose()}
+            />
         </div>
     );
 }
