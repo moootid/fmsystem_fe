@@ -45,6 +45,7 @@ export const CreateVehicleForm: React.FC<CreateVehicleFormProps> = ({
   const [status, setStatus] = useState("");
   const [type, setType] = useState("");
   const [color, setColor] = useState("");
+  const [description, setDescription] = useState("");
 
   const [validationErrors, setValidationErrors] =
     useState<ApiValidationError | null>(null);
@@ -63,7 +64,7 @@ export const CreateVehicleForm: React.FC<CreateVehicleFormProps> = ({
       onSuccess();
     },
     onError: (error) => {
-      const errors = apiService.handleApiError(error, (opts:any) =>
+      const errors = apiService.handleApiError(error, (opts: any) =>
         toast.error(opts),
       );
       if (errors && typeof errors === "object") {
@@ -93,10 +94,11 @@ export const CreateVehicleForm: React.FC<CreateVehicleFormProps> = ({
       vin,
       manufacturer: manufacturer || undefined,
       model: model || undefined,
-      year: year === "" ? undefined : year,
+      make_year: year === "" ? undefined : year,
       status: status || undefined,
       type: type || undefined,
       color: color || undefined,
+      description: description || undefined,
     };
 
     mutation.mutate(payload);
@@ -118,16 +120,16 @@ export const CreateVehicleForm: React.FC<CreateVehicleFormProps> = ({
         <Label htmlFor="code" className="text-right pt-2"> Code* </Label>
         <div className="col-span-3">
           <Input id="code" value={code} onChange={(e) => setCode(e.target.value)} disabled={mutation.isPending} required aria-required="true" className={getFieldError(validationErrors, "code") ? "border-destructive" : ""} />
-          {getFieldError(validationErrors, "code") && ( <p className="text-sm text-destructive mt-1"> {getFieldError(validationErrors, "code")} </p> )}
+          {getFieldError(validationErrors, "code") && (<p className="text-sm text-destructive mt-1"> {getFieldError(validationErrors, "code")} </p>)}
         </div>
       </div>
 
       {/* Plate */}
-       <div className="grid grid-cols-4 items-start gap-4">
+      <div className="grid grid-cols-4 items-start gap-4">
         <Label htmlFor="plate" className="text-right pt-2"> Plate* </Label>
         <div className="col-span-3">
           <Input id="plate" value={plate} onChange={(e) => setPlate(e.target.value)} disabled={mutation.isPending} required aria-required="true" className={getFieldError(validationErrors, "plate") ? "border-destructive" : ""} />
-          {getFieldError(validationErrors, "plate") && ( <p className="text-sm text-destructive mt-1"> {getFieldError(validationErrors, "plate")} </p> )}
+          {getFieldError(validationErrors, "plate") && (<p className="text-sm text-destructive mt-1"> {getFieldError(validationErrors, "plate")} </p>)}
         </div>
       </div>
 
@@ -136,16 +138,16 @@ export const CreateVehicleForm: React.FC<CreateVehicleFormProps> = ({
         <Label htmlFor="vin" className="text-right pt-2"> VIN* </Label>
         <div className="col-span-3">
           <Input id="vin" value={vin} onChange={(e) => setVin(e.target.value)} disabled={mutation.isPending} required aria-required="true" className={getFieldError(validationErrors, "vin") ? "border-destructive" : ""} />
-          {getFieldError(validationErrors, "vin") && ( <p className="text-sm text-destructive mt-1"> {getFieldError(validationErrors, "vin")} </p> )}
+          {getFieldError(validationErrors, "vin") && (<p className="text-sm text-destructive mt-1"> {getFieldError(validationErrors, "vin")} </p>)}
         </div>
       </div>
 
-       {/* Manufacturer */}
+      {/* Manufacturer */}
       <div className="grid grid-cols-4 items-start gap-4">
         <Label htmlFor="manufacturer" className="text-right pt-2"> Manufacturer </Label>
         <div className="col-span-3">
           <Input id="manufacturer" value={manufacturer} onChange={(e) => setManufacturer(e.target.value)} disabled={mutation.isPending} className={getFieldError(validationErrors, "manufacturer") ? "border-destructive" : ""} />
-          {getFieldError(validationErrors, "manufacturer") && ( <p className="text-sm text-destructive mt-1"> {getFieldError(validationErrors, "manufacturer")} </p> )}
+          {getFieldError(validationErrors, "manufacturer") && (<p className="text-sm text-destructive mt-1"> {getFieldError(validationErrors, "manufacturer")} </p>)}
         </div>
       </div>
 
@@ -154,7 +156,7 @@ export const CreateVehicleForm: React.FC<CreateVehicleFormProps> = ({
         <Label htmlFor="model" className="text-right pt-2"> Model </Label>
         <div className="col-span-3">
           <Input id="model" value={model} onChange={(e) => setModel(e.target.value)} disabled={mutation.isPending} className={getFieldError(validationErrors, "model") ? "border-destructive" : ""} />
-          {getFieldError(validationErrors, "model") && ( <p className="text-sm text-destructive mt-1"> {getFieldError(validationErrors, "model")} </p> )}
+          {getFieldError(validationErrors, "model") && (<p className="text-sm text-destructive mt-1"> {getFieldError(validationErrors, "model")} </p>)}
         </div>
       </div>
 
@@ -163,7 +165,7 @@ export const CreateVehicleForm: React.FC<CreateVehicleFormProps> = ({
         <Label htmlFor="year" className="text-right pt-2"> Year </Label>
         <div className="col-span-3">
           <Input id="year" type="number" value={year} onChange={(e) => setYear(e.target.value === "" ? "" : parseInt(e.target.value, 10))} placeholder="e.g., 2023" min="1900" max={new Date().getFullYear() + 1} disabled={mutation.isPending} className={getFieldError(validationErrors, "year") ? "border-destructive" : ""} />
-          {getFieldError(validationErrors, "year") && ( <p className="text-sm text-destructive mt-1"> {getFieldError(validationErrors, "year")} </p> )}
+          {getFieldError(validationErrors, "year") && (<p className="text-sm text-destructive mt-1"> {getFieldError(validationErrors, "year")} </p>)}
         </div>
       </div>
 
@@ -172,7 +174,7 @@ export const CreateVehicleForm: React.FC<CreateVehicleFormProps> = ({
         <Label htmlFor="status" className="text-right pt-2"> Status </Label>
         <div className="col-span-3">
           <Input id="status" value={status} onChange={(e) => setStatus(e.target.value)} placeholder="e.g., Active, Maintenance" disabled={mutation.isPending} className={getFieldError(validationErrors, "status") ? "border-destructive" : ""} />
-          {getFieldError(validationErrors, "status") && ( <p className="text-sm text-destructive mt-1"> {getFieldError(validationErrors, "status")} </p> )}
+          {getFieldError(validationErrors, "status") && (<p className="text-sm text-destructive mt-1"> {getFieldError(validationErrors, "status")} </p>)}
         </div>
       </div>
 
@@ -181,7 +183,7 @@ export const CreateVehicleForm: React.FC<CreateVehicleFormProps> = ({
         <Label htmlFor="type" className="text-right pt-2"> Type </Label>
         <div className="col-span-3">
           <Input id="type" value={type} onChange={(e) => setType(e.target.value)} placeholder="e.g., Sedan, Truck" disabled={mutation.isPending} className={getFieldError(validationErrors, "type") ? "border-destructive" : ""} />
-          {getFieldError(validationErrors, "type") && ( <p className="text-sm text-destructive mt-1"> {getFieldError(validationErrors, "type")} </p> )}
+          {getFieldError(validationErrors, "type") && (<p className="text-sm text-destructive mt-1"> {getFieldError(validationErrors, "type")} </p>)}
         </div>
       </div>
 
@@ -190,7 +192,16 @@ export const CreateVehicleForm: React.FC<CreateVehicleFormProps> = ({
         <Label htmlFor="color" className="text-right pt-2"> Color </Label>
         <div className="col-span-3">
           <Input id="color" value={color} onChange={(e) => setColor(e.target.value)} placeholder="e.g., Red, Blue" disabled={mutation.isPending} className={getFieldError(validationErrors, "color") ? "border-destructive" : ""} />
-          {getFieldError(validationErrors, "color") && ( <p className="text-sm text-destructive mt-1"> {getFieldError(validationErrors, "color")} </p> )}
+          {getFieldError(validationErrors, "color") && (<p className="text-sm text-destructive mt-1"> {getFieldError(validationErrors, "color")} </p>)}
+        </div>
+      </div>
+
+      {/* Description */}
+      <div className="grid grid-cols-4 items-start gap-4">
+        <Label htmlFor="description" className="text-right pt-2"> Description </Label>
+        <div className="col-span-3">
+          <Input id="description" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="e.g., Additional details about the vehicle" disabled={mutation.isPending} className={getFieldError(validationErrors, "description") ? "border-destructive" : ""} />
+          {getFieldError(validationErrors, "description") && (<p className="text-sm text-destructive mt-1"> {getFieldError(validationErrors, "description")} </p>)}
         </div>
       </div>
       {/* --- End Form Fields --- */}
