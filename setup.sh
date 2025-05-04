@@ -30,7 +30,7 @@ aws s3 sync --delete $LOCAL_DIR "$S3_PATH" # More efficient: syncs differences a
 # Build the frontend (Ensure VITE_BACKEND_URL is set before this)
 echo "Building frontend..."
 # The build should happen *before* syncing if LOCAL_DIR points to the build output (e.g., 'dist')
-# bunx vite build # Moved this potentially to CI/CD step *before* running this script
+bunx vite build # Moved this potentially to CI/CD step *before* running this script
 
 # Upload new files to S3
 echo "Uploading files from $LOCAL_DIR to $S3_PATH"
