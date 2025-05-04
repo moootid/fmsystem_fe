@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e # Exit immediately if a command fails
 
-echo "Backend URL for build: $VITE_BACKEND_URL" # Note: Renamed to VITE_ for Vite build process
+echo "Backend URL for build: $BACKEND_URL" # Note: Renamed to VITE_ for Vite build process
 echo "Frontend URL: $FRONTEND_URL"
 echo "S3 Bucket: s3://$S3_WEB_BUCKET_NAME"
 echo "S3 Prefix: $S3_PREFIX"
