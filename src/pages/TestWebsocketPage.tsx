@@ -24,6 +24,7 @@ import {
   GetRowIdParams,
 } from "ag-grid-community";
 import { AgGridReact } from "ag-grid-react";
+import { WS_ENDPOINT } from "@/services/apiService";
 
 // Register the required AG Grid modules
 // Register AG Grid Community modules
@@ -33,7 +34,7 @@ const themeDarkBlue = themeQuartz.withPart(colorSchemeDarkBlue);
 
 
 // --- Configuration ---
-const WS_ENDPOINT = "ws://localhost:4000/socket"; // Phoenix WebSocket URL
+// const WS_ENDPOINT = "ws://localhost:4000/socket"; // Phoenix WebSocket URL
 const CHANNEL_TOPIC = "vehicles:live"; // Phoenix Channel topic
 
 // Vehicle interface remains the same
