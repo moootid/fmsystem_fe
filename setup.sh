@@ -21,16 +21,16 @@ if [ -n "$S3_PREFIX" ]; then
   S3_PATH="${S3_PATH}/${S3_PREFIX}"
 fi
 
+# Build the frontend (Ensure VITE_BACKEND_URL is set before this)
+echo "Building frontend..."
+# The build should happen *before* syncing if LOCAL_DIR points to the build output (e.g., 'dist')
+bunx vite build # Moved this potentially to CI/CD step *before* running this script
 # Delete files from S3
 echo "Deleting files from $S3_PATH"
 # Use --delete flag with sync for efficiency, or rm if preferred
 # aws s3 rm "$S3_PATH" --recursive
 aws s3 sync --delete $LOCAL_DIR "$S3_PATH" # More efficient: syncs differences and deletes extras
 
-# Build the frontend (Ensure VITE_BACKEND_URL is set before this)
-echo "Building frontend..."
-# The build should happen *before* syncing if LOCAL_DIR points to the build output (e.g., 'dist')
-bunx vite build # Moved this potentially to CI/CD step *before* running this script
 
 # Upload new files to S3
 echo "Uploading files from $LOCAL_DIR to $S3_PATH"
