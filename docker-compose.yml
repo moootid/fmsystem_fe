@@ -1,0 +1,19 @@
+version: '3'
+
+services:
+  fmsystem_fe:
+    build: .
+    restart: always
+    environment:
+      BACKEND_URL: https://fmsystem.ecs.mokh32.com
+      FRONTEND_URL: https://fms.ecs.mokh32.com
+      AWS_ACCESS_KEY_ID: ${AWS_ADMIN_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_ADMIN_SECRET_ACCESS_KEY}
+      S3_WEB_BUCKET_NAME: ${S3_WEB_BUCKET_NAME}
+      S3_REGION: ${S3_WEB_REGION}
+      S3_PREFIX: ${S3_PREFIX}
+      LOCAL_DIR: ${LOCAL_DIR}
+      DISTRIBUTION_ID: ${DISTRIBUTION_ID}
+      INVALIDATION_PATH: ${INVALIDATION_PATH}
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
