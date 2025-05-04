@@ -9,11 +9,11 @@ import type { ApiAuthToken, CreateApiAuthTokenPayload } from "@/types/apiAuthTok
 import type { Vehicle, CreateVehiclePayload, UpdateVehiclePayload } from "@/types/vehicle";
 import type { IotDevice, CreateIotDevicePayload, UpdateIotDevicePayload } from "@/types/iotDevice";
 
-
-export const WS_ENDPOINT = "ws://localhost:4000/socket"; // Phoenix WebSocket URL
+const BASE_API_URI = process.env.BACKEND_URL || "fmsystem.mokh32.com"
+export const WS_ENDPOINT = `wss://${BASE_API_URI}/socket`; // Phoenix WebSocket URL
 // Centralized API Client Configuration
 const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:4000/api", // Use env variable
+  baseURL: import.meta.env.VITE_API_BASE_URL || `https://${BASE_API_URI}/api`, // Use env variable
   headers: {
     "Content-Type": "application/json",
     // CORS headers are typically set by the *server*, not the client request
